@@ -50,7 +50,7 @@ def _resolve_slug(slug: str, http_get):
 
 
 def parse(url: str, page: str, http_get) -> dict:
-    result = {"title": "", "sections": []}
+    result = {"title": "", "sections": [], "variants": []}
 
     # Embedded JSON first: free if a future deploy server-renders builds.
     for blob in extract_json_scripts(page):
@@ -85,20 +85,60 @@ def parse(url: str, page: str, http_get) -> dict:
         result["title"] = name.strip() + (
             f" ({cls.strip()})" if isinstance(cls, str) and cls.strip() else ""
         )
-    result["sections"] = sections_from_tree(doc)
+    result["sections"] = _doc_sections(doc)
 
-    # The generic scan gets skills and gear; boards and per-slot stats carry
-    # detail it can't see (glyphs, greater-affix/masterwork/temper markers),
-    # so rebuild those sections by hand.
+    # The base document is itself a variant (its display name is the
+    # top-level variantName); doc['variants'] holds the alternates, each a
+    # full parallel build document.
+    variants = []
+    base_name = doc.get("variantName")
+    variants.append({
+        "name": base_name.strip()
+        if isinstance(base_name, str) and base_name.strip()
+        else "Main",
+        "sections": result["sections"],
+    })
+    for i, alt in enumerate(doc.get("variants") or [], 2):
+        if not isinstance(alt, dict):
+            continue
+        try:
+            sections = _doc_sections(alt)
+        except Exception:
+            continue
+        if not sections:
+            continue
+        alt_name = alt.get("name") or alt.get("variantName")
+        variants.append({
+            "name": alt_name.strip()
+            if isinstance(alt_name, str) and alt_name.strip()
+            else f"Variant {i}",
+            "sections": sections,
+        })
+    if len(variants) > 1:
+        result["variants"] = variants
+    return result
+
+
+def _doc_sections(doc) -> list:
+    """Sections for one build document (the base doc and each variant share
+    the same shape). The generic scan gets skills and gear; boards and
+    per-slot stats carry detail it can't see (glyphs, greater-affix /
+    masterwork / temper markers), so rebuild those sections by hand."""
+    # Shallow-copy without nested variants: the generic scan must find THIS
+    # document's skills/gear, not walk into an alternate's.
+    if isinstance(doc.get("variants"), list):
+        doc = {k: v for k, v in doc.items() if k != "variants"}
+    sections = [
+        s for s in sections_from_tree(doc)
+        if s["title"] not in ("Paragon Boards", "Stat Priorities")
+    ]
     for title, items in (
         ("Paragon Boards", _paragon_boards(doc)),
         ("Stat Priorities", _stat_priorities(doc)),
     ):
         if items:
-            result["sections"] = [
-                s for s in result["sections"] if s["title"] != title
-            ] + [{"title": title, "items": items}]
-    return result
+            sections.append({"title": title, "items": items})
+    return sections
 
 
 def _paragon_boards(doc) -> list:
@@ -195,7 +235,7 @@ def _stat_priorities(doc) -> list:
         tempers = tempering.get(slot)
         for temper in tempers if isinstance(tempers, list) else []:
             if isinstance(temper, str) and temper.strip():
-                rows.append(f"  – Temper ✱ {temper.strip()}")
+                rows.append(f"  – Temper: {temper.strip()}")
         socket_list = gems.get(slot) if isinstance(gems.get(slot), list) else []
         sockets = {}
         for gem in socket_list:

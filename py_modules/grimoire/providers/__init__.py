@@ -75,6 +75,7 @@ def fetch_metadata(url: str, get=http_get) -> dict:
         page = ""
     title = _extract_title(page)
     sections: list = []
+    variants: list = []
 
     parser = _get_parser(detect_provider(url))
     if parser is not None:
@@ -83,9 +84,14 @@ def fetch_metadata(url: str, get=http_get) -> dict:
             if parsed.get("title"):
                 title = parsed["title"]
             sections = parsed.get("sections") or []
+            # Optional: [{name, sections}] when the guide ships several
+            # builds (Starter / Endgame / ...). `sections` stays the default
+            # variant's, so anything ignoring variants keeps working.
+            variants = parsed.get("variants") or []
         except Exception:
             # Best-effort by contract: structured parsing must never break
             # the generic save-the-link flow.
             sections = []
+            variants = []
 
-    return {"title": title, "sections": sections}
+    return {"title": title, "sections": sections, "variants": variants}

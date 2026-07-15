@@ -156,7 +156,9 @@ class DispatchTests(unittest.TestCase):
         meta = fetch_metadata(
             "https://example.com/guide", get=lambda u: "<title>Some Guide</title>"
         )
-        self.assertEqual(meta, {"title": "Some Guide", "sections": []})
+        self.assertEqual(
+            meta, {"title": "Some Guide", "sections": [], "variants": []}
+        )
 
     def test_parser_exception_falls_back_to_generic(self):
         # A mobalytics URL whose page makes the structured path blow up
@@ -212,7 +214,26 @@ class MobalyticsTests(unittest.TestCase):
                 "slots": [
                     {
                         "gameSlotSlug": "helm",
-                        "gameEntity": {"title": "Harlequin Crest", "type": "uniqueItems"},
+                        "gameEntity": {
+                            "title": "Harlequin Crest",
+                            "type": "uniqueItems",
+                            "modifiers": {
+                                "gearStats": [
+                                    {"id": "maximum-life", "isGreater": False,
+                                     "isMasterwork": False},
+                                    {"id": "cooldown-reduction", "isGreater": True,
+                                     "isMasterwork": True},
+                                ],
+                                "socketStats": [
+                                    {"slug": "emerald", "type": "gems"},
+                                    {"slug": "emerald", "type": "gems"},
+                                ],
+                                "temperingStats": [
+                                    {"id": "worldly-endurance-maximum-life",
+                                     "isGreater": False, "isMasterwork": False},
+                                ],
+                            },
+                        },
                     },
                     {
                         "gameSlotSlug": "season-12-charm-1",
@@ -220,18 +241,6 @@ class MobalyticsTests(unittest.TestCase):
                     },
                 ]
             },
-            "equipmentPriorityList": [
-                {
-                    "slug": "harlequin-crest-sorcerer",  # slug drags class name
-                    "type": "helm",
-                    "modifiers": [
-                        {"slug": "maximum-life", "type": "gear"},
-                        {"slug": "emerald", "type": "socket"},
-                        {"slug": "emerald", "type": "socket"},
-                        {"slug": "worldly-endurance-maximum-life", "type": "tempering"},
-                    ],
-                }
-            ],
             "paragon": {
                 "boards": [
                     {
@@ -260,6 +269,13 @@ class MobalyticsTests(unittest.TestCase):
                 {"slug": "new-seal"},  # empty-slot placeholder, dropped
             ],
         }
+        variant["id"] = "5"
+        pushing = {
+            "id": "2",
+            "assignedSkills": {
+                "skills": [{"position": 1, "skill": {"name": "Frozen Orb"}}]
+            },
+        }
         state = {
             "diablo4State": {
                 "queries": [
@@ -267,7 +283,19 @@ class MobalyticsTests(unittest.TestCase):
                         "game": {
                             "documents": {
                                 "userGeneratedDocumentBySlug": {
-                                    "data": {"buildVariants": {"values": [variant]}}
+                                    "data": {
+                                        "buildVariants": {"values": [variant, pushing]},
+                                        "content": [
+                                            {
+                                                "data": {
+                                                    "childrenVariants": [
+                                                        {"id": "5", "title": "Starter"},
+                                                        {"id": "2", "title": "Pushing"},
+                                                    ]
+                                                }
+                                            }
+                                        ],
+                                    }
                                 }
                             }
                         }
@@ -294,15 +322,17 @@ class MobalyticsTests(unittest.TestCase):
         )
         # Charm slots stay out of gear; uniques are flagged.
         self.assertEqual(by_title["Gear"], ["Helm: Harlequin Crest (Unique)"])
-        # Slot-first header with the clean genericBuilder title (not the
-        # class-suffixed slug); sockets aggregate, tempers are marked.
+        # Slot-first headers; ✱ marks the greater-affix pick (the site's
+        # asterisk), masterwork target labeled, sockets aggregate, tempers
+        # get a plain label - a temper is a crafting step, not a pick.
         self.assertEqual(
             by_title["Stat Priorities"],
             [
                 "Helm · Harlequin Crest",
                 "  – Maximum Life",
+                "  – ✱ Cooldown Reduction (masterwork)",
                 "  – Sockets: Emerald ×2",
-                "  – Temper ✱ Worldly Endurance Maximum Life",
+                "  – Temper: Worldly Endurance Maximum Life",
             ],
         )
         self.assertEqual(
@@ -314,6 +344,14 @@ class MobalyticsTests(unittest.TestCase):
         )
         self.assertEqual(by_title["Charms"], ["Beru Of The Multitude"])
         self.assertEqual(by_title["Mercenaries"], ["Primary: Raheir The Shieldbearer"])
+        # Every guide variant is offered, named from childrenVariants; the
+        # default sections are the first variant's.
+        self.assertEqual([v["name"] for v in meta["variants"]], ["Starter", "Pushing"])
+        pushing_skills = next(
+            s for s in meta["variants"][1]["sections"] if s["title"] == "Skills"
+        )
+        self.assertEqual(pushing_skills["items"], ["1 · Frozen Orb"])
+        self.assertEqual(meta["sections"], meta["variants"][0]["sections"])
 
 
 class MaxrollTests(unittest.TestCase):
@@ -472,6 +510,14 @@ D4B_DOC_FIELDS = {
     "masterworking": {"Helm": [0, 0, 1]},
     "temperingStats": {"Helm": ["Total Armor (Worldly Fortune - Defensive)"]},
     "newGems": {"Helm": ["Ruby", "Ruby"]},
+    "variantName": "Starter (P200)",
+    "variants": [
+        {
+            "name": "Pushing (P290)",
+            "skills": ["Hammer of the Ancients"],
+            "gear": {"Helm": "Harlequin Crest"},
+        }
+    ],
 }
 
 
@@ -503,10 +549,22 @@ class D4BuildsTests(unittest.TestCase):
                 "  – Strength",
                 "  – ✱ Cooldown Reduction",
                 "  – Maximum Life (masterwork)",
-                "  – Temper ✱ Total Armor (Worldly Fortune - Defensive)",
+                "  – Temper: Total Armor (Worldly Fortune - Defensive)",
                 "  – Sockets: Ruby ×2",
             ],
         )
+        # The base doc is the first variant (named by variantName); the
+        # alternates follow with their own sections, and the base sections
+        # never leak an alternate's data.
+        self.assertEqual(
+            [v["name"] for v in meta["variants"]],
+            ["Starter (P200)", "Pushing (P290)"],
+        )
+        alt_gear = next(
+            s for s in meta["variants"][1]["sections"] if s["title"] == "Gear"
+        )
+        self.assertEqual(alt_gear["items"], ["Helm: Harlequin Crest"])
+        self.assertEqual(by_title["Gear"], ["Helm: Tuskhelm of Joritz the Mighty"])
 
     def test_named_build_slug_resolves_via_page_data(self):
         page_data = {

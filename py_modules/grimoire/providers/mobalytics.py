@@ -149,65 +149,69 @@ def _gear_and_gifts(variant):
     return gear, gifts
 
 
-def _stat_priorities(variant) -> list:
-    """Per-item affix priority as an item header + indented stat rows.
+def _stat_rows(stats) -> list:
+    """gearStats/temperingStats entries: {id, isGreater, isMasterwork}.
+    ✱ marks the greater-affix pick - the same asterisk the site shows -
+    and the masterwork-crit target is labeled."""
+    rows = []
+    for stat in stats if isinstance(stats, list) else []:
+        if not isinstance(stat, dict):
+            continue
+        label = _pretty(stat.get("id"))
+        if not label:
+            continue
+        row = "  – "
+        if stat.get("isGreater"):
+            row += "✱ "
+        row += label
+        if stat.get("isMasterwork"):
+            row += " (masterwork)"
+        rows.append(row)
+    return rows
 
-    Mobalytics types every modifier: 'gear' is a regular affix, 'socket' a
-    gem/rune, 'tempering' a tempered stat (its slug is prefixed with the
-    temper manual, e.g. worldly-destruction-attack-speed) - the panel must
-    say which is which, so sockets aggregate into one row and tempers get a
-    'Temper ✱' label. Mobalytics doesn't publish greater-affix picks; only
-    d4builds carries those.
+
+def _stat_priorities(variant) -> list:
+    """Per-item stats as a 'Slot · Item' header + indented stat rows, from
+    the genericBuilder paperdoll - the one place Mobalytics attaches
+    isGreater/isMasterwork flags to each affix. Sockets (gems and runes)
+    aggregate into one row; tempered stats get a plain 'Temper:' label
+    (they're a crafting step, not a greater-affix pick).
 
     Headers lead with the SLOT ('Ring 1 · Aspect of the Moonrise') - a
-    build has four aspect-named rings and pants, and without the slot the
-    reader can't tell which item a stat block belongs to. The clean item
-    title comes from genericBuilder (the priority-list slug drags the
-    class name along, 'aspect-of-debilitating-toxins-spiritborn').
+    build has four aspect-named pieces, and without the slot the reader
+    can't tell which item a stat block belongs to.
     """
-    titles = {}  # slot slug -> clean item title
-    for slot in (variant.get("genericBuilder") or {}).get("slots") or []:
-        if isinstance(slot, dict):
-            title = (slot.get("gameEntity") or {}).get("title")
-            if isinstance(title, str) and title.strip():
-                titles[slot.get("gameSlotSlug")] = title.strip()
-
     lines = []
-    for item in variant.get("equipmentPriorityList") or []:
-        if not isinstance(item, dict):
+    for slot in (variant.get("genericBuilder") or {}).get("slots") or []:
+        if not isinstance(slot, dict):
             continue
-        slot = item.get("type")
-        name = titles.get(slot) or _pretty(item.get("slug"))
-        if not name:
+        slot_slug = slot.get("gameSlotSlug")
+        if isinstance(slot_slug, str) and slot_slug.startswith("season-"):
+            continue  # charm slots duplicate the Charms section
+        entity = slot.get("gameEntity") or {}
+        title = entity.get("title")
+        if not isinstance(title, str) or not title.strip():
             continue
-        slot_name = _pretty(slot)
-        if slot_name:
-            name = f"{slot_name} · {name}"
-        rows, sockets = [], {}
-        socket_row_at = None
-        for mod in item.get("modifiers") or []:
-            if not isinstance(mod, dict):
-                continue
-            label = _pretty(mod.get("slug"))
-            if not label:
-                continue
-            kind = mod.get("type")
-            if kind == "socket":
-                if socket_row_at is None:
-                    socket_row_at = len(rows)
-                    rows.append(None)  # placeholder, filled after the loop
+        modifiers = entity.get("modifiers") or {}
+
+        rows = _stat_rows(modifiers.get("gearStats"))
+        sockets = {}
+        for sock in modifiers.get("socketStats") or []:
+            label = _pretty(sock.get("slug")) if isinstance(sock, dict) else ""
+            if label:
                 sockets[label] = sockets.get(label, 0) + 1
-            elif kind == "tempering":
-                rows.append(f"  – Temper ✱ {label}")
-            else:
-                rows.append(f"  – {label}")
-        if socket_row_at is not None:
-            rendered = ", ".join(
-                g if n == 1 else f"{g} ×{n}" for g, n in sockets.items()
+        if sockets:
+            rows.append(
+                "  – Sockets: "
+                + ", ".join(s if n == 1 else f"{s} ×{n}" for s, n in sockets.items())
             )
-            rows[socket_row_at] = f"  – Sockets: {rendered}"
+        for temper in _stat_rows(modifiers.get("temperingStats")):
+            rows.append(temper.replace("  – ", "  – Temper: ", 1))
+
         if rows:
-            lines.append(name)
+            slot_name = _pretty(slot_slug)
+            header = f"{slot_name} · {title.strip()}" if slot_name else title.strip()
+            lines.append(header)
             lines.extend(rows)
     return lines
 
@@ -302,17 +306,45 @@ def _variant_sections(variant) -> list:
     return sections
 
 
-def _detailed_sections(doc) -> list:
+def _variant_titles(doc) -> dict:
+    """Variant id -> display title, from the article's childrenVariants
+    descriptors ([{id: '5', title: 'Starter'}, ...])."""
+    titles = {}
+    for node in walk(doc):
+        if isinstance(node, dict) and isinstance(node.get("childrenVariants"), list):
+            for child in node["childrenVariants"]:
+                if (
+                    isinstance(child, dict)
+                    and isinstance(child.get("title"), str)
+                    and child["title"].strip()
+                ):
+                    titles[child.get("id")] = child["title"].strip()
+    return titles
+
+
+def _detailed_variants(doc) -> list:
+    """Every build variant as {name, sections} - guides ship several
+    (Starter / Endgame / Mythic / Pushing) and they differ in gear,
+    paragon and even skills, so the panel must offer all of them."""
     for node in walk(doc):
         if isinstance(node, dict) and isinstance(node.get("buildVariants"), dict):
-            variants = node["buildVariants"].get("values") or []
-            if variants and isinstance(variants[0], dict):
-                return _variant_sections(variants[0])
+            values = node["buildVariants"].get("values") or []
+            titles = _variant_titles(doc)
+            variants = []
+            for i, variant in enumerate(values, 1):
+                if not isinstance(variant, dict):
+                    continue
+                sections = _variant_sections(variant)
+                if sections:
+                    name = titles.get(variant.get("id")) or f"Variant {i}"
+                    variants.append({"name": name, "sections": sections})
+            if variants:
+                return variants
     return []
 
 
 def parse(url: str, page: str, http_get) -> dict:
-    result = {"title": "", "sections": []}
+    result = {"title": "", "sections": [], "variants": []}
 
     # Two passes: a blob containing the page's own document always beats a
     # whole-blob scan of some other embed (nav/search caches also embed
@@ -323,10 +355,12 @@ def parse(url: str, page: str, http_get) -> dict:
         if not doc:
             continue
         try:
-            result["sections"] = _detailed_sections(doc)
+            result["variants"] = _detailed_variants(doc)
         except Exception:
-            result["sections"] = []
-        if not result["sections"]:
+            result["variants"] = []
+        if result["variants"]:
+            result["sections"] = result["variants"][0]["sections"]
+        else:
             result["sections"] = sections_from_tree(doc)
         if result["sections"]:
             break

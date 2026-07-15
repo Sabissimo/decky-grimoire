@@ -1,5 +1,6 @@
 import {
   ButtonItem,
+  DropdownItem,
   Navigation,
   PanelSection,
   PanelSectionRow,
@@ -15,6 +16,11 @@ interface BuildSection {
   items: string[];
 }
 
+interface BuildVariant {
+  name: string;
+  sections: BuildSection[];
+}
+
 interface Build {
   id: string;
   name: string;
@@ -22,6 +28,7 @@ interface Build {
   source_url: string;
   notes: string;
   sections: BuildSection[];
+  variants?: BuildVariant[];
   pinned: boolean;
   added_at: number;
 }
@@ -54,6 +61,7 @@ function BuildDetail({
   onChanged: (builds: Build[]) => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [variantIdx, setVariantIdx] = useState(0);
 
   const run = async (action: () => Promise<Build[]>, thenBack = false) => {
     setBusy(true);
@@ -64,6 +72,14 @@ function BuildDetail({
       setBusy(false);
     }
   };
+
+  // Guides ship several build variants (Starter / Endgame / Pushing...).
+  // The selector picks which one's sections render below; builds without
+  // variants keep their flat sections.
+  const variants = build.variants ?? [];
+  const hasVariants = variants.length > 1;
+  const selected = Math.min(variantIdx, Math.max(variants.length - 1, 0));
+  const sections = hasVariants ? variants[selected].sections : build.sections;
 
   return (
     <>
@@ -91,9 +107,19 @@ function BuildDetail({
             {build.pinned ? "Unpin" : "Pin as current build"}
           </ButtonItem>
         </PanelSectionRow>
+        {hasVariants && (
+          <PanelSectionRow>
+            <DropdownItem
+              label="Variant"
+              rgOptions={variants.map((v, i) => ({ data: i, label: v.name }))}
+              selectedOption={selected}
+              onChange={(option) => setVariantIdx(option.data as number)}
+            />
+          </PanelSectionRow>
+        )}
       </PanelSection>
 
-      {build.sections.map((section) => {
+      {sections.map((section) => {
         // Providers emit hierarchical sections (an item/skill header with
         // "  – " sub-rows). Leading whitespace collapses in HTML, so the
         // hierarchy must be restored with styling: headers bold, sub-rows

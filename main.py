@@ -49,6 +49,7 @@ class Plugin:
             "source_url": url,
             "notes": notes,
             "sections": meta.get("sections", []),
+            "variants": meta.get("variants", []),
             "pinned": False,
             "added_at": int(time.time()),
         }
@@ -100,6 +101,7 @@ class Plugin:
                     )
                     b["name"] = meta.get("title") or b["name"]
                     b["sections"] = meta.get("sections", b.get("sections", []))
+                    b["variants"] = meta.get("variants", b.get("variants", []))
                 except Exception as e:
                     decky.logger.warning("refresh failed for %s: %s", b["source_url"], e)
         _save_builds(builds)
