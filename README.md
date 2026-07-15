@@ -41,7 +41,6 @@ up.
 
 ### Roadmap
 
-- Testing on real Steam Deck hardware
 - More games (Path of Exile 2, Last Epoch) and the Decky store
 
 ## Installation

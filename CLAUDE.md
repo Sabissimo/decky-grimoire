@@ -46,7 +46,10 @@ matching package.json's version, then `git push origin vX.Y.Z`.
    redesign may never break saving a link. The dispatcher's try/except
    enforces this; keep it.
 2. **Backend stays stdlib-only.** Decky plugins must vendor Python deps;
-   we avoid the problem entirely (urllib, json, re).
+   we avoid the problem entirely (urllib, json, re). The one system
+   dependency is the curl fallback in `http_get` — `/usr/bin/curl` ships
+   with SteamOS and is only used when Cloudflare bot-blocks the embedded
+   Python (see Deck-runtime facts below).
 3. **Sections format is the frontend contract**: `[{title: str, items:
    [str]}]`, optionally wrapped in `variants: [{name, sections}]` with
    `sections` = the default variant's (so older entries keep working).
@@ -97,16 +100,31 @@ matching package.json's version, then `git push origin vX.Y.Z`.
     embedded JSON first; if the data loads client-side, use a browser with
     a fetch/XHR monkeypatch to capture requests — plain network listings
     miss Firestore WebChannel traffic.
-- Not yet tested on real hardware. Install path: Decky settings →
-  developer mode → Install plugin from zip (CI artifact), or deploy via
-  decky-cli. Frontend concerns to verify on the Deck: virtual keyboard
-  with `TextField`, focus navigation, `Navigation.NavigateToExternalWeb`
-  behaviour from Quick Access while a game runs, DropdownItem in the
-  variant selector, reorder-mode focus flow.
-- Roadmap (in rough order): on-Deck smoke test (blocked on hardware; the
-  user will run it) → more games (PoE2 / Last Epoch providers — SHELVED
-  until asked) → Decky store submission (repo is BSD-3-Clause, store
-  requires OSI license — done). Done and shipped: Maxroll planner detail
+- **Live-debugged on real hardware 2026-07-15** (SSH into the user's
+  Deck, log tail + scp iterate). Verified end-to-end: add a Mobalytics
+  link → full parse (all sections, all variants). Deck-runtime facts —
+  do not regress:
+  - Cloudflare TLS-fingerprints Decky's embedded Python → 403 on guide
+    pages regardless of headers. `http_get` falls back to system curl on
+    403/429/503, with the loader's pyinstaller `LD_LIBRARY_PATH`
+    scrubbed (it poisons curl with an incompatible libssl → exit 1,
+    "OPENSSL_x_not found") and the absolute `/usr/bin/curl` path (the
+    plugin env has NO PATH; `which` finds nothing).
+  - Decky's embedded Python also can't verify HTTPS at all without the
+    explicit CA-bundle context (`_SSL_CONTEXT`); keep `context=` on
+    every urlopen.
+  - Closing a dropdown's full-screen menu REMOUNTS the QAM content and
+    wipes useState — the open build and per-build variant picks live at
+    module scope (`rememberedBuildId`, `rememberedVariants`). Any new
+    selection state must do the same.
+  - The virtual keyboard can commit text without firing onChange — never
+    gate a button on text state (the Save button stays enabled and an
+    empty field explains itself in a toast).
+  - `fetch_metadata` returns an `error` field that add/refresh log —
+    silent degradation made every real-Deck failure invisible; keep it.
+- Roadmap: more games (PoE2 / Last Epoch providers — SHELVED until
+  asked) → Decky store submission (repo is BSD-3-Clause, store requires
+  OSI license — done). Done and shipped: Maxroll planner detail
   parity, per-build notes editing, leveling checklist, section reordering,
   build variants.
 
