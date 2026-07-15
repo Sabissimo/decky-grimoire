@@ -87,30 +87,123 @@ def parse(url: str, page: str, http_get) -> dict:
         )
     result["sections"] = sections_from_tree(doc)
 
-    # The paragon boards carry glyph + level; the generic scan renders only
-    # board names, so rebuild that section with the detail.
-    boards = _paragon_boards(doc)
-    if boards:
-        result["sections"] = [
-            s for s in result["sections"] if s["title"] != "Paragon Boards"
-        ] + [{"title": "Paragon Boards", "items": boards}]
+    # The generic scan gets skills and gear; boards and per-slot stats carry
+    # detail it can't see (glyphs, greater-affix/masterwork/temper markers),
+    # so rebuild those sections by hand.
+    for title, items in (
+        ("Paragon Boards", _paragon_boards(doc)),
+        ("Stat Priorities", _stat_priorities(doc)),
+    ):
+        if items:
+            result["sections"] = [
+                s for s in result["sections"] if s["title"] != title
+            ] + [{"title": title, "items": items}]
     return result
 
 
 def _paragon_boards(doc) -> list:
+    boards = [
+        b for b in (doc.get("paragon") or {}).get("boards") or []
+        if isinstance(b, dict) and isinstance(b.get("name"), str) and b["name"].strip()
+    ]
+    boards.sort(
+        key=lambda b: b.get("boardNumber")
+        if isinstance(b.get("boardNumber"), (int, float))
+        else 999
+    )
     lines = []
-    for board in (doc.get("paragon") or {}).get("boards") or []:
-        if not isinstance(board, dict):
-            continue
-        name = board.get("name")
-        if not isinstance(name, str) or not name.strip():
-            continue
-        line = name.strip()
+    for i, board in enumerate(boards, 1):
+        line = f"{i}. {board['name'].strip()}"
         glyph = board.get("glyph")
         if isinstance(glyph, str) and glyph.strip():
             level = board.get("glyphLevel")
             line += f" — {glyph.strip()}" + (
                 f" ({int(level)})" if isinstance(level, (int, float)) and level else ""
             )
+        rotation = board.get("rotation")
+        if isinstance(rotation, (int, float)) and rotation % 360:
+            line += f" · rotate {int(rotation % 360)}°"
         lines.append(line)
+    return lines
+
+
+def _first_live_map(doc, *keys):
+    """The first of several slot->list maps that has any real value.
+    d4builds keeps legacy twins around ('stats' full of None next to
+    'newStats' with the data)."""
+    for key in keys:
+        m = doc.get(key)
+        if isinstance(m, dict) and any(
+            isinstance(v, list) and any(x is not None for x in v)
+            for v in m.values()
+        ):
+            return m
+    return {}
+
+
+# Firestore maps come back in arbitrary key order; present slots the way a
+# player reads a character sheet.
+SLOT_ORDER = (
+    "Helm", "Chest Armor", "Gloves", "Pants", "Boots",
+    "Amulet", "Ring 1", "Ring 2",
+    "Slashing Weapon", "Bludgeoning Weapon", "Dual-Wield Weapon 1",
+    "Dual-Wield Weapon 2", "Ranged Weapon", "Weapon", "Offhand", "Shield",
+)
+
+
+def _slot_rank(slot: str) -> tuple:
+    try:
+        return (0, SLOT_ORDER.index(slot))
+    except ValueError:
+        return (1, slot)
+
+
+def _stat_priorities(doc) -> list:
+    """Slot header + indented stat rows. Parallel per-slot arrays mark what
+    matters when hunting gear: greaterAffixes[i] flags the greater-affix
+    (✱) pick for stats[i], masterworking[i] the masterwork-crit target;
+    temperingStats and gems/runes get their own labeled rows."""
+    stats = _first_live_map(doc, "newStats", "stats")
+    if not stats:
+        return []
+    greater = doc.get("greaterAffixes") or {}
+    master = doc.get("masterworking") or {}
+    tempering = doc.get("temperingStats") or {}
+    gems = _first_live_map(doc, "newGems", "gems")
+
+    lines = []
+    for slot in sorted(stats, key=_slot_rank):
+        names = stats[slot]
+        if not isinstance(names, list):
+            continue
+        g = greater.get(slot) if isinstance(greater.get(slot), list) else []
+        m = master.get(slot) if isinstance(master.get(slot), list) else []
+        rows = []
+        for i, name in enumerate(names):
+            if not isinstance(name, str) or not name.strip():
+                continue
+            row = "  – "
+            if i < len(g) and g[i]:
+                row += "✱ "
+            row += name.strip()
+            if i < len(m) and m[i]:
+                row += " (masterwork)"
+            rows.append(row)
+        tempers = tempering.get(slot)
+        for temper in tempers if isinstance(tempers, list) else []:
+            if isinstance(temper, str) and temper.strip():
+                rows.append(f"  – Temper ✱ {temper.strip()}")
+        socket_list = gems.get(slot) if isinstance(gems.get(slot), list) else []
+        sockets = {}
+        for gem in socket_list:
+            if isinstance(gem, str) and gem.strip():
+                sockets[gem.strip()] = sockets.get(gem.strip(), 0) + 1
+        if sockets:
+            rows.append(
+                "  – Sockets: "
+                + ", ".join(s if n == 1 else f"{s} ×{n}" for s, n in sockets.items())
+            )
+        if rows:
+            lines.append(slot)
+            lines.extend(rows)
     return lines

@@ -56,9 +56,14 @@ def _strip_class(slug: str) -> str:
     return tail if head in CLASS_PREFIXES and tail else slug
 
 
-def _add(sections, title, items):
+# Manually-built detail sections (stat priorities, skill tree) legitimately
+# run past the generic-scan cap: an item header plus its indented stat rows.
+DETAIL_CAP = 100
+
+
+def _add(sections, title, items, cap=MAX_ITEMS_PER_SECTION):
     if items:
-        sections.append({"title": title, "items": items[:MAX_ITEMS_PER_SECTION]})
+        sections.append({"title": title, "items": items[:cap]})
 
 
 def _skill_bar(assigned) -> list:
@@ -145,8 +150,15 @@ def _gear_and_gifts(variant):
 
 
 def _stat_priorities(variant) -> list:
-    """Per-item affix priority: 'Rod Of Kepeleke: Dexterity, Emerald ×2, ...'
-    Consecutive duplicate modifiers (gem sockets) compress to ×n."""
+    """Per-item affix priority as an item header + indented stat rows.
+
+    Mobalytics types every modifier: 'gear' is a regular affix, 'socket' a
+    gem/rune, 'tempering' a tempered stat (its slug is prefixed with the
+    temper manual, e.g. worldly-destruction-attack-speed) - the panel must
+    say which is which, so sockets aggregate into one row and tempers get a
+    'Temper ✱' label. Mobalytics doesn't publish greater-affix picks; only
+    d4builds carries those.
+    """
     lines = []
     for item in variant.get("equipmentPriorityList") or []:
         if not isinstance(item, dict):
@@ -154,36 +166,83 @@ def _stat_priorities(variant) -> list:
         name = _pretty(item.get("slug"))
         if not name:
             continue
-        mods = []
+        rows, sockets = [], {}
+        socket_row_at = None
         for mod in item.get("modifiers") or []:
-            label = _pretty(mod.get("slug")) if isinstance(mod, dict) else ""
+            if not isinstance(mod, dict):
+                continue
+            label = _pretty(mod.get("slug"))
             if not label:
                 continue
-            if mods and mods[-1][0] == label:
-                mods[-1][1] += 1
+            kind = mod.get("type")
+            if kind == "socket":
+                if socket_row_at is None:
+                    socket_row_at = len(rows)
+                    rows.append(None)  # placeholder, filled after the loop
+                sockets[label] = sockets.get(label, 0) + 1
+            elif kind == "tempering":
+                rows.append(f"  – Temper ✱ {label}")
             else:
-                mods.append([label, 1])
-        if mods:
-            rendered = ", ".join(l if n == 1 else f"{l} ×{n}" for l, n in mods)
-            lines.append(f"{name}: {rendered}")
+                rows.append(f"  – {label}")
+        if socket_row_at is not None:
+            rendered = ", ".join(
+                g if n == 1 else f"{g} ×{n}" for g, n in sockets.items()
+            )
+            rows[socket_row_at] = f"  – Sockets: {rendered}"
+        if rows:
+            lines.append(name)
+            lines.extend(rows)
     return lines
 
 
 def _paragon(variant) -> list:
+    """Boards in attach order with glyph, level, node investment and the
+    rotation needed to walk them; closes with the glyph levelling order.
+    Node PICKS are only coordinates in this data (no names), so the path
+    itself stays with 'Open full guide'."""
+    paragon = variant.get("paragon") or {}
+    # Node slugs are '<board>-x11-y14' - count investment per board.
+    node_counts = {}
+    for node in paragon.get("nodes") or []:
+        slug = node.get("slug") if isinstance(node, dict) else None
+        if isinstance(slug, str) and "-x" in slug:
+            board = slug.rsplit("-x", 1)[0]
+            node_counts[board] = node_counts.get(board, 0) + 1
+
     lines = []
-    for board in (variant.get("paragon") or {}).get("boards") or []:
+    for i, board in enumerate(paragon.get("boards") or [], 1):
         if not isinstance(board, dict):
             continue
-        name = _pretty(_strip_class((board.get("board") or {}).get("slug") or ""))
+        slug = (board.get("board") or {}).get("slug") or ""
+        name = _pretty(_strip_class(slug))
         if not name:
             continue
+        line = f"{i}. {name}"
         glyph = _pretty(_strip_class((board.get("glyph") or {}).get("slug") or ""))
         if glyph:
             level = board.get("glyphLevel")
-            name += f" — {glyph}" + (
+            line += f" — {glyph}" + (
                 f" ({level})" if isinstance(level, (int, float)) and level else ""
             )
-        lines.append(name)
+        # The board slugs in `boards` and `nodes` drift slightly
+        # ('starter-board' vs 'starting-board') - match on either.
+        count = node_counts.get(slug) or node_counts.get(
+            slug.replace("starter", "starting")
+        )
+        if count:
+            line += f" · {count} nodes"
+        rotation = board.get("rotation")
+        if isinstance(rotation, (int, float)) and rotation % 360:
+            line += f" · rotate {int(rotation % 360)}°"
+        lines.append(line)
+
+    glyph_order = [
+        _pretty(_strip_class(g.get("slug")))
+        for g in paragon.get("priorityList") or []
+        if isinstance(g, dict) and isinstance(g.get("slug"), str)
+    ]
+    if len(glyph_order) > 1:
+        lines.append("Glyph order: " + " → ".join(glyph_order))
     return lines
 
 
@@ -215,11 +274,11 @@ def _variant_sections(variant) -> list:
     _add(sections, "Skills", _skill_bar(assigned))
     _add(sections, "Spirit Hall", _spirit_hall(assigned))
     _add(sections, "Enchantments", _enchantments(assigned))
-    _add(sections, "Skill Tree", _skill_tree(variant))
+    _add(sections, "Skill Tree", _skill_tree(variant), cap=DETAIL_CAP)
     gear, gifts = _gear_and_gifts(variant)
     _add(sections, "Gear", gear)
     _add(sections, "Divine Gifts", gifts)
-    _add(sections, "Stat Priorities", _stat_priorities(variant))
+    _add(sections, "Stat Priorities", _stat_priorities(variant), cap=DETAIL_CAP)
     _add(sections, "Paragon Boards", _paragon(variant))
     _add(sections, "Charms", _charms(variant))
     _add(sections, "Mercenaries", _mercenaries(variant))

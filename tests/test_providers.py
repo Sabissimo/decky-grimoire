@@ -224,9 +224,10 @@ class MobalyticsTests(unittest.TestCase):
                 {
                     "slug": "harlequin-crest",
                     "modifiers": [
-                        {"slug": "maximum-life"},
-                        {"slug": "emerald"},
-                        {"slug": "emerald"},
+                        {"slug": "maximum-life", "type": "gear"},
+                        {"slug": "emerald", "type": "socket"},
+                        {"slug": "emerald", "type": "socket"},
+                        {"slug": "worldly-endurance-maximum-life", "type": "tempering"},
                     ],
                 }
             ],
@@ -236,8 +237,17 @@ class MobalyticsTests(unittest.TestCase):
                         "board": {"slug": "sorcerer-starter-board"},
                         "glyph": {"slug": "sorcerer-elementalist"},
                         "glyphLevel": 100,
+                        "rotation": 990,
                     }
-                ]
+                ],
+                "nodes": [
+                    {"slug": "sorcerer-starter-board-x1-y1"},
+                    {"slug": "sorcerer-starter-board-x1-y2"},
+                ],
+                "priorityList": [
+                    {"slug": "sorcerer-elementalist"},
+                    {"slug": "sorcerer-destruction"},
+                ],
             },
             "mercenary": {
                 "primaryMercenary": {"slug": "raheir-the-shieldbearer"},
@@ -283,12 +293,22 @@ class MobalyticsTests(unittest.TestCase):
         )
         # Charm slots stay out of gear; uniques are flagged.
         self.assertEqual(by_title["Gear"], ["Helm: Harlequin Crest (Unique)"])
+        # Item header + indented rows; sockets aggregate, tempers are marked.
         self.assertEqual(
             by_title["Stat Priorities"],
-            ["Harlequin Crest: Maximum Life, Emerald ×2"],
+            [
+                "Harlequin Crest",
+                "  – Maximum Life",
+                "  – Sockets: Emerald ×2",
+                "  – Temper ✱ Worldly Endurance Maximum Life",
+            ],
         )
         self.assertEqual(
-            by_title["Paragon Boards"], ["Starter Board — Elementalist (100)"]
+            by_title["Paragon Boards"],
+            [
+                "1. Starter Board — Elementalist (100) · 2 nodes · rotate 270°",
+                "Glyph order: Elementalist → Destruction",
+            ],
         )
         self.assertEqual(by_title["Charms"], ["Beru Of The Multitude"])
         self.assertEqual(by_title["Mercenaries"], ["Primary: Raheir The Shieldbearer"])
@@ -442,6 +462,14 @@ D4B_DOC_FIELDS = {
     "paragon": {
         "boards": [{"name": "Starting Board", "glyph": "Exploit", "glyphLevel": 100}]
     },
+    # Legacy 'stats' is all-None next to 'newStats' with the data; the
+    # parallel arrays flag greater-affix picks and masterwork targets.
+    "stats": {"Helm": [None, None]},
+    "newStats": {"Helm": ["Strength", "Cooldown Reduction", "Maximum Life"]},
+    "greaterAffixes": {"Helm": [None, 1, None]},
+    "masterworking": {"Helm": [0, 0, 1]},
+    "temperingStats": {"Helm": ["Total Armor (Worldly Fortune - Defensive)"]},
+    "newGems": {"Helm": ["Ruby", "Ruby"]},
 }
 
 
@@ -454,13 +482,29 @@ class D4BuildsTests(unittest.TestCase):
 
         meta = fetch_metadata(f"https://d4builds.gg/builds/{D4B_UUID}/", get=fake_get)
         self.assertEqual(meta["title"], "HotA Barb (Barbarian)")
-        titles = {s["title"] for s in meta["sections"]}
-        self.assertEqual(titles, {"Skills", "Gear", "Paragon Boards"})
-        gear = next(s for s in meta["sections"] if s["title"] == "Gear")
+        by_title = {s["title"]: s["items"] for s in meta["sections"]}
+        self.assertEqual(
+            set(by_title),
+            {"Skills", "Gear", "Paragon Boards", "Stat Priorities"},
+        )
         # Slot-map gear renders filled slots and drops empty ones.
-        self.assertEqual(gear["items"], ["Helm: Tuskhelm of Joritz the Mighty"])
-        paragon = next(s for s in meta["sections"] if s["title"] == "Paragon Boards")
-        self.assertEqual(paragon["items"], ["Starting Board — Exploit (100)"])
+        self.assertEqual(by_title["Gear"], ["Helm: Tuskhelm of Joritz the Mighty"])
+        self.assertEqual(
+            by_title["Paragon Boards"], ["1. Starting Board — Exploit (100)"]
+        )
+        # Greater-affix pick marked ✱, masterwork target labeled, tempers
+        # and sockets on their own rows.
+        self.assertEqual(
+            by_title["Stat Priorities"],
+            [
+                "Helm",
+                "  – Strength",
+                "  – ✱ Cooldown Reduction",
+                "  – Maximum Life (masterwork)",
+                "  – Temper ✱ Total Armor (Worldly Fortune - Defensive)",
+                "  – Sockets: Ruby ×2",
+            ],
+        )
 
     def test_named_build_slug_resolves_via_page_data(self):
         page_data = {
