@@ -62,8 +62,17 @@ def _extract_title(page: str) -> str:
 
 def fetch_metadata(url: str, get=http_get) -> dict:
     """Fetch a guide page and return {title, sections}. Blocking - callers
-    run this in an executor. `get` is injectable for tests."""
-    page = get(url)
+    run this in an executor. `get` is injectable for tests.
+
+    The page GET is itself best-effort: providers whose data comes from a
+    separate API (Maxroll planner, d4builds/Firestore) can still produce a
+    full result when the guide site throttles or times out the page fetch -
+    maxroll.gg has been seen tarpitting repeat fetches while its planner API
+    keeps answering."""
+    try:
+        page = get(url)
+    except Exception:
+        page = ""
     title = _extract_title(page)
     sections: list = []
 

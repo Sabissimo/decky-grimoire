@@ -1,59 +1,89 @@
 """d4builds.gg parser.
 
-d4builds.gg is a community planner: d4builds.gg/builds/<uuid> maps to a
-structured build document, which makes it the most parser-friendly provider.
-It's a JS single-page app, so the build data may not be in the initial HTML;
-we try, in order:
+d4builds.gg is a Gatsby SPA whose build documents live in a public Firestore
+database (verified live 2026-07-15):
 
-1. JSON embedded in the page itself (covers server-rendered deploys)
-2. Candidate JSON endpoints derived from the build id
+    https://firestore.googleapis.com/v1/projects/d4builds-a3254/databases/
+        (default)/documents/builds/<uuid>
 
-The candidate endpoints are educated guesses and are validated by
-scripts/validate_live.py on a real network (this repo is developed in an
-environment that cannot reach the site). Anything that fails just falls
-back to the generic title + open-in-browser behaviour.
+Two flavours of build URL:
+
+- d4builds.gg/builds/<uuid> - the uuid IS the Firestore document id.
+- d4builds.gg/builds/<slug> (named meta builds, e.g. whirlwind-barbarian-
+  endgame) - the slug resolves to a uuid via the Gatsby page-data JSON's
+  pageContext.seoId, which also carries the guide's display name (seoName).
+
+The Firestore response uses typed fields ({"stringValue": ...}); parseutil's
+firestore_to_plain() flattens it, then the generic structure scan extracts
+sections. Everything here stays best-effort: any failure falls back to the
+generic title + open-in-browser behaviour via the dispatcher.
 """
 import json
 import re
 
-from grimoire.parseutil import extract_json_scripts, sections_from_tree
-
-BUILD_ID_RE = re.compile(r"d4builds\.gg/builds/([0-9a-fA-F-]{8,})")
-
-# Unverified until validate_live.py is run against a real build URL.
-CANDIDATE_ENDPOINTS = (
-    "https://d4builds.gg/api/builds/{bid}",
-    "https://api.d4builds.gg/builds/{bid}",
+from grimoire.parseutil import (
+    extract_json_scripts,
+    firestore_to_plain,
+    sections_from_tree,
 )
+
+BUILD_URL_RE = re.compile(r"d4builds\.gg/builds/([A-Za-z0-9-]+)")
+UUID_RE = re.compile(r"^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$")
+
+PAGE_DATA_ENDPOINT = "https://d4builds.gg/page-data/builds/{slug}/page-data.json"
+FIRESTORE_ENDPOINT = (
+    "https://firestore.googleapis.com/v1/projects/d4builds-a3254/"
+    "databases/(default)/documents/builds/{bid}"
+)
+
+
+def _resolve_slug(slug: str, http_get):
+    """Named build slug -> (uuid, display name) via Gatsby page-data."""
+    body = http_get(PAGE_DATA_ENDPOINT.format(slug=slug))
+    ctx = json.loads(body).get("result", {}).get("pageContext", {})
+    bid = ctx.get("seoId")
+    name = ctx.get("seoName")
+    return (
+        bid if isinstance(bid, str) and UUID_RE.match(bid) else None,
+        name.strip() if isinstance(name, str) else "",
+    )
 
 
 def parse(url: str, page: str, http_get) -> dict:
     result = {"title": "", "sections": []}
 
+    # Embedded JSON first: free if a future deploy server-renders builds.
     for blob in extract_json_scripts(page):
         sections = sections_from_tree(blob)
         if sections:
             result["sections"] = sections
             return result
 
-    m = BUILD_ID_RE.search(url)
+    m = BUILD_URL_RE.search(url)
     if not m:
         return result
     bid = m.group(1)
 
-    for endpoint in CANDIDATE_ENDPOINTS:
+    if not UUID_RE.match(bid):
         try:
-            body = http_get(endpoint.format(bid=bid))
-            data = json.loads(body)
+            bid, result["title"] = _resolve_slug(bid, http_get)
         except Exception:
-            continue
-        sections = sections_from_tree(data)
-        if sections:
-            if isinstance(data, dict):
-                name = data.get("name") or data.get("title")
-                if isinstance(name, str):
-                    result["title"] = name.strip()
-            result["sections"] = sections
+            return result
+        if not bid:
             return result
 
+    try:
+        doc = firestore_to_plain(json.loads(http_get(FIRESTORE_ENDPOINT.format(bid=bid))))
+    except Exception:
+        return result
+    if not isinstance(doc, dict):
+        return result
+
+    name = doc.get("name")
+    if isinstance(name, str) and name.strip():
+        cls = doc.get("class")
+        result["title"] = name.strip() + (
+            f" ({cls.strip()})" if isinstance(cls, str) and cls.strip() else ""
+        )
+    result["sections"] = sections_from_tree(doc)
     return result

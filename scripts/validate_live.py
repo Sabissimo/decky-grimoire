@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Validate Grimoire's parsers against a REAL guide URL.
 
-The repo is developed in an environment that cannot reach the guide sites,
-so provider endpoint guesses (see providers/*.py CANDIDATE_* constants) need
-this script run from a normal network - your desktop or the Deck itself:
+Guide sites redesign freely, so provider endpoints and page shapes (see
+providers/*.py) should be re-checked with this script from a normal
+network - your desktop or the Deck itself - whenever a provider stops
+yielding sections:
 
     python3 scripts/validate_live.py https://mobalytics.gg/diablo-4/builds/...
     python3 scripts/validate_live.py https://maxroll.gg/d4/planner/...

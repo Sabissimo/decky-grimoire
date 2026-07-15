@@ -45,23 +45,33 @@ uploads a sideload-ready `decky-grimoire.zip` artifact.
 
 ## Current state / next steps
 
-- Dev so far happened in an environment that CANNOT reach the guide sites,
-  so the `CANDIDATE_*` endpoint lists in `providers/d4builds.py` and
-  `providers/maxroll.py` are educated guesses, marked unverified.
-  **Next step: run `scripts/validate_live.py` against one real URL per
-  provider on an open network, then fix parsers against actual page/API
-  shapes.** Expect the candidate endpoints to need correction; the
-  embedded-JSON scanning path is more likely to survive contact.
+- **All three providers live-validated 2026-07-15** (real URLs, open
+  network) and parsing structured sections:
+  - Mobalytics: build data is in `window.__PRELOADED_STATE__` (not
+    __NEXT_DATA__) under `userGeneratedDocumentBySlug`. Sidebar embeds
+    carry OTHER builds' data — parsers must anchor to the page's own
+    document, never trust a whole-blob scan alone.
+  - Maxroll planner: `https://planners.maxroll.gg/profiles/load/{game}/{pid}`
+    (no auth, no special headers; 404 + `{"error": "Profile not found"}`
+    for dead ids). The outer payload's `search_metadata` has plain-language
+    skill/item names — no game-data ID mapping needed. Guide articles embed
+    the same planner payloads; anchor on `search_metadata` there too.
+  - d4builds: build docs live in public Firestore (project `d4builds-a3254`,
+    collection `builds`, REST API, no key). Named-build slugs resolve to
+    uuids via Gatsby `page-data/builds/<slug>/page-data.json` →
+    `pageContext.seoId`. `parseutil.firestore_to_plain` decodes typed fields.
+  - maxroll.gg tarpits repeat page fetches (read stalls) while the planner
+    API keeps answering — that's why `fetch_metadata` treats the page GET
+    itself as best-effort. Don't "fix" that back.
 - Not yet tested on real hardware. Install path: Decky settings →
   developer mode → Install plugin from zip (CI artifact), or deploy via
   decky-cli. Frontend concerns to verify on the Deck: virtual keyboard
   with `TextField`, focus navigation, `Navigation.NavigateToExternalWeb`
   behaviour from Quick Access while a game runs.
-- Roadmap (in rough order): live-validate parsers → on-Deck smoke test →
-  per-build notes editing in the panel → leveling checklist mode
-  (remember current step) → Maxroll game-data ID mapping → more games →
-  Decky store submission (repo is BSD-3-Clause, store requires OSI
-  license — done).
+- Roadmap (in rough order): on-Deck smoke test → per-build notes editing
+  in the panel → leveling checklist mode (remember current step) → more
+  games (PoE2 / Last Epoch providers) → Decky store submission (repo is
+  BSD-3-Clause, store requires OSI license — done).
 
 ## Conventions
 

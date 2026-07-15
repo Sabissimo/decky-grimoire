@@ -20,19 +20,20 @@ Epoch, ...).
   while your game keeps running
 - 🔌 **Provider detection** — recognizes Mobalytics, Maxroll and d4builds.gg
   links and fetches a readable title for each entry
-- 🧩 **Structured parsing (experimental)** — skills, gear, paragon boards and
-  guide outlines rendered natively in the panel when the guide page exposes
-  them. Parsers scan embedded JSON for recognizable build structures rather
-  than relying on exact paths, so site redesigns degrade to fewer sections
-  instead of errors. **Needs live validation** — see below.
+- 🧩 **Structured parsing** — skills, gear, paragon boards and guide
+  outlines rendered natively in the panel. All three providers were
+  validated against live pages (2026-07): Mobalytics build guides, Maxroll
+  planners & build-guide articles, and d4builds.gg builds (both named metas
+  and shared custom-build uuids). Parsers scan embedded JSON / provider APIs
+  for recognizable build structures rather than relying on exact paths, so
+  site redesigns degrade to fewer sections instead of errors.
 - 📴 **Offline-friendly** — your library is stored locally; adding a link
   while offline still works (title fills in on refresh)
 
 ### Validating parsers against real pages
 
-This repo is developed in an environment that cannot reach the guide sites,
-so the provider endpoint guesses (`CANDIDATE_*` constants in
-`py_modules/grimoire/providers/*.py`) need checking from a normal network:
+Guide sites redesign freely, so when a provider stops yielding sections,
+re-check it from a normal network:
 
 ```bash
 python3 scripts/validate_live.py https://maxroll.gg/d4/planner/<id>

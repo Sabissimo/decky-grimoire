@@ -70,6 +70,73 @@ class ParseUtilTests(unittest.TestCase):
         a["self"] = a
         self.assertTrue(any(n is a for n in parseutil.walk(a)))
 
+    def test_extract_window_json(self):
+        page = (
+            "<script>window.__PRELOADED_STATE__ = "
+            '{"a": [1, 2], "t": "x"};</script>'
+            "<script>window.notJson = function(){};</script>"
+        )
+        blobs = parseutil.extract_window_json(page)
+        self.assertEqual(blobs, [{"a": [1, 2], "t": "x"}])
+
+    def test_named_items_unwraps_wrapper_dicts(self):
+        # Mobalytics assigned skills: {position, skill: {name}}.
+        items = parseutil.named_items(
+            [{"position": 1, "skill": {"name": "Ice Armor"}}]
+        )
+        self.assertEqual(items, ["Ice Armor"])
+
+    def test_named_items_slug_fallback_skips_ids(self):
+        items = parseutil.named_items(
+            [
+                {"slug": "harlequin-crest", "type": "helm"},
+                {"slug": "sorcerer-starting-board-x13-y14"},  # coordinate id
+            ]
+        )
+        self.assertEqual(items, ["Helm: Harlequin Crest"])
+
+    def test_section_key_priority_is_global(self):
+        # A mercenary 'skillTree' list must not shadow the build's own
+        # 'skills' list, whatever order walk() visits them in.
+        tree = {
+            "mercenary": {"skillTree": [{"name": "Wire Trap"}]},
+            "build": {"skills": [{"name": "Whirlwind"}]},
+        }
+        sections = parseutil.sections_from_tree(tree)
+        skills = next(s for s in sections if s["title"] == "Skills")
+        self.assertEqual(skills["items"], ["Whirlwind"])
+
+    def test_slot_map_dict_renders_filled_slots(self):
+        sections = parseutil.sections_from_tree(
+            {"gear": {"Helm": "Godslayer Crown", "Offhand": None, "deep": None}}
+        )
+        self.assertEqual(
+            sections, [{"title": "Gear", "items": ["Helm: Godslayer Crown"]}]
+        )
+
+    def test_slot_map_rejects_nested_structures(self):
+        sections = parseutil.sections_from_tree({"gear": {"Helm": {"id": 1}}})
+        self.assertEqual(sections, [])
+
+    def test_firestore_to_plain(self):
+        doc = json.loads(
+            make_firestore_doc(
+                {"name": "X", "n": 3, "ok": True, "none": None,
+                 "lst": ["a", 2], "map": {"k": "v"}}
+            )
+        )
+        self.assertEqual(
+            parseutil.firestore_to_plain(doc),
+            {"name": "X", "n": 3, "ok": True, "none": None,
+             "lst": ["a", 2], "map": {"k": "v"}},
+        )
+
+    def test_heading_outline_strips_chrome(self):
+        page = "<h2>EquipmentCollapse</h2><h2>Advertisement</h2><h2>Paragon</h2>"
+        self.assertEqual(
+            parseutil.heading_outline(page), ["Equipment", "Paragon"]
+        )
+
 
 class DispatchTests(unittest.TestCase):
     def test_detect_provider(self):
@@ -121,6 +188,56 @@ class MobalyticsTests(unittest.TestCase):
             meta["sections"], [{"title": "Guide outline", "items": ["Leveling", "Endgame"]}]
         )
 
+    def test_preloaded_state_page_document_beats_sidebar_blobs(self):
+        # Live shape (2026-07): build data in window.__PRELOADED_STATE__
+        # under userGeneratedDocumentBySlug; other embeds carry OTHER
+        # builds' data and must lose to the page's own document.
+        state = {
+            "diablo4State": {
+                "queries": [
+                    {
+                        "game": {
+                            "documents": {
+                                "userGeneratedDocumentBySlug": {
+                                    "data": {
+                                        "buildVariants": {
+                                            "values": [
+                                                {
+                                                    "assignedSkills": {
+                                                        "skills": [
+                                                            {"skill": {"name": "Ball Lightning"}}
+                                                        ],
+                                                        "enchantments": [{"name": "Chain Lightning"}],
+                                                    },
+                                                    "equipmentPriorityList": [
+                                                        {"slug": "harlequin-crest", "type": "helm"}
+                                                    ],
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+        page = (
+            '<meta property="og:title" content="Ball Lightning Sorc"/>'
+            '<script type="application/json">'
+            + json.dumps({"sidebar": {"skills": [{"name": "Wrong Build Skill"}]}})
+            + "</script>"
+            "<script>window.__PRELOADED_STATE__ = " + json.dumps(state) + ";</script>"
+        )
+        meta = fetch_metadata("https://mobalytics.gg/diablo-4/builds/x", get=lambda u: page)
+        skills = next(s for s in meta["sections"] if s["title"] == "Skills")
+        self.assertEqual(skills["items"], ["Ball Lightning"])
+        gear = next(s for s in meta["sections"] if s["title"] == "Gear")
+        self.assertEqual(gear["items"], ["Helm: Harlequin Crest"])
+        ench = next(s for s in meta["sections"] if s["title"] == "Enchantments")
+        self.assertEqual(ench["items"], ["Chain Lightning"])
+
 
 class MaxrollTests(unittest.TestCase):
     def test_planner_url_hits_profile_endpoint(self):
@@ -165,27 +282,145 @@ class MaxrollTests(unittest.TestCase):
         outline = next(s for s in meta["sections"] if s["title"] == "Guide outline")
         self.assertEqual(outline["items"], ["Skill Tree", "  – Priority", "Paragon"])
 
-
-class D4BuildsTests(unittest.TestCase):
-    def test_spa_page_falls_through_to_api_endpoint(self):
-        api_payload = {
-            "name": "HotA Barb",
-            "skills": [{"name": "Hammer of the Ancients", "points": 5}],
+    def test_planner_search_metadata_beats_inner_ids(self):
+        # Live shape (2026-07): outer payload carries plain names in
+        # search_metadata; the inner data's skills are numeric ids.
+        payload = {
+            "name": "Ball Lightning Sorc",
+            "data": json.dumps(
+                {"profiles": [{"name": "Endgame"}], "skills": ["517417:49"]}
+            ),
+            "search_metadata": {
+                "skills": ["Ball Lightning", "Teleport"],
+                "items": ["Godslayer Crown"],
+            },
         }
 
         def fake_get(url):
-            if url.startswith("https://d4builds.gg/api/builds/"):
-                return json.dumps(api_payload)
+            if "planners.maxroll.gg/profiles/load/d4/xyz789" in url:
+                return json.dumps(payload)
+            return "<title>Maxroll Planner</title>"
+
+        meta = fetch_metadata("https://maxroll.gg/d4/planner/xyz789", get=fake_get)
+        self.assertEqual(meta["title"], "Ball Lightning Sorc")
+        skills = next(s for s in meta["sections"] if s["title"] == "Skills")
+        self.assertEqual(skills["items"], ["Ball Lightning", "Teleport"])
+        gear = next(s for s in meta["sections"] if s["title"] == "Gear")
+        self.assertEqual(gear["items"], ["Godslayer Crown"])
+
+    def test_planner_profile_not_found_falls_back(self):
+        def fake_get(url):
+            if "planners.maxroll.gg" in url:
+                return json.dumps({"error": "Profile not found"})
+            return "<title>Maxroll Planner</title>"
+
+        meta = fetch_metadata("https://maxroll.gg/d4/planner/gone", get=fake_get)
+        self.assertEqual(meta["title"], "Maxroll Planner")
+        self.assertEqual(meta["sections"], [])
+
+    def test_article_embedded_search_metadata_beats_toc(self):
+        blob = {
+            "toc": {"items": ["Introduction", "Equipment", "FAQ"]},
+            "embed": {
+                "search_metadata": {"skills": ["Blood Surge"], "items": ["Kessime's Legacy"]}
+            },
+        }
+        page = (
+            "<title>Blood Surge Guide</title>"
+            '<script type="application/json">' + json.dumps(blob) + "</script>"
+            "<h2>Paragon</h2>"
+        )
+        meta = fetch_metadata("https://maxroll.gg/d4/build-guides/blood-surge", get=lambda u: page)
+        titles = [s["title"] for s in meta["sections"]]
+        self.assertEqual(titles, ["Skills", "Gear", "Guide outline"])
+        gear = next(s for s in meta["sections"] if s["title"] == "Gear")
+        self.assertEqual(gear["items"], ["Kessime's Legacy"])
+
+    def test_page_fetch_failure_still_parses_planner(self):
+        # maxroll.gg has been seen tarpitting page fetches while the
+        # planner API keeps answering - the page GET must be best-effort.
+        payload = {"name": "Resilient Build", "data": json.dumps({"profiles": []})}
+
+        def fake_get(url):
+            if "planners.maxroll.gg" in url:
+                return json.dumps(payload)
+            raise TimeoutError("tarpitted")
+
+        meta = fetch_metadata("https://maxroll.gg/d4/planner/abc123", get=fake_get)
+        self.assertEqual(meta["title"], "Resilient Build")
+
+
+def make_firestore_doc(fields: dict) -> str:
+    """A Firestore REST document, typed-value format, from plain values."""
+
+    def enc(v):
+        if v is None:
+            return {"nullValue": None}
+        if isinstance(v, bool):
+            return {"booleanValue": v}
+        if isinstance(v, int):
+            return {"integerValue": str(v)}
+        if isinstance(v, float):
+            return {"doubleValue": v}
+        if isinstance(v, str):
+            return {"stringValue": v}
+        if isinstance(v, list):
+            return {"arrayValue": {"values": [enc(e) for e in v]}}
+        if isinstance(v, dict):
+            return {"mapValue": {"fields": {k: enc(x) for k, x in v.items()}}}
+        raise TypeError(v)
+
+    return json.dumps(
+        {
+            "name": "projects/d4builds-a3254/databases/(default)/documents/builds/x",
+            "fields": {k: enc(v) for k, v in fields.items()},
+        }
+    )
+
+
+D4B_UUID = "fb2a2a80-6907-4be4-a7eb-a98785f128b0"
+D4B_DOC_FIELDS = {
+    "name": "HotA Barb",
+    "class": "Barbarian",
+    "skills": ["Hammer of the Ancients", "War Cry"],
+    "gear": {"Helm": "Tuskhelm of Joritz the Mighty", "Offhand": None},
+    "paragon": {"boards": [{"name": "Starting Board", "glyph": "Exploit"}]},
+}
+
+
+class D4BuildsTests(unittest.TestCase):
+    def test_uuid_build_loads_from_firestore(self):
+        def fake_get(url):
+            if url.startswith("https://firestore.googleapis.com/") and D4B_UUID in url:
+                return make_firestore_doc(D4B_DOC_FIELDS)
             return "<html><title>D4Builds</title><div id=root></div></html>"
 
-        meta = fetch_metadata(
-            "https://d4builds.gg/builds/0f8b2c4d-1234-5678-9abc-def012345678",
-            get=fake_get,
-        )
-        self.assertEqual(meta["title"], "HotA Barb")
-        self.assertEqual(
-            meta["sections"], [{"title": "Skills", "items": ["Hammer of the Ancients (5)"]}]
-        )
+        meta = fetch_metadata(f"https://d4builds.gg/builds/{D4B_UUID}/", get=fake_get)
+        self.assertEqual(meta["title"], "HotA Barb (Barbarian)")
+        titles = {s["title"] for s in meta["sections"]}
+        self.assertEqual(titles, {"Skills", "Gear", "Paragon Boards"})
+        gear = next(s for s in meta["sections"] if s["title"] == "Gear")
+        # Slot-map gear renders filled slots and drops empty ones.
+        self.assertEqual(gear["items"], ["Helm: Tuskhelm of Joritz the Mighty"])
+
+    def test_named_build_slug_resolves_via_page_data(self):
+        page_data = {
+            "result": {
+                "pageContext": {"seoId": D4B_UUID, "seoName": "Whirlwind Barbarian Guide"}
+            }
+        }
+
+        def fake_get(url):
+            if url == "https://d4builds.gg/page-data/builds/whirlwind-barb/page-data.json":
+                return json.dumps(page_data)
+            if url.startswith("https://firestore.googleapis.com/") and D4B_UUID in url:
+                return make_firestore_doc(D4B_DOC_FIELDS)
+            return "<title>D4Builds</title>"
+
+        meta = fetch_metadata("https://d4builds.gg/builds/whirlwind-barb/", get=fake_get)
+        # The Firestore doc's own name wins over the page-data seoName.
+        self.assertEqual(meta["title"], "HotA Barb (Barbarian)")
+        self.assertTrue(meta["sections"])
 
     def test_embedded_json_wins_without_api_call(self):
         page = make_next_data_page("HotA Barb", BUILD_TREE)
@@ -200,11 +435,11 @@ class D4BuildsTests(unittest.TestCase):
 
     def test_all_endpoints_down_falls_back(self):
         def fake_get(url):
-            if "api" in url:
+            if "firestore" in url or "page-data" in url:
                 raise OSError("blocked")
             return "<title>D4Builds</title>"
 
-        meta = fetch_metadata("https://d4builds.gg/builds/abcdef12-3456", get=fake_get)
+        meta = fetch_metadata(f"https://d4builds.gg/builds/{D4B_UUID}", get=fake_get)
         self.assertEqual(meta["title"], "D4Builds")
         self.assertEqual(meta["sections"], [])
 
