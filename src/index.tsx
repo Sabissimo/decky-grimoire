@@ -1,0 +1,225 @@
+import {
+  ButtonItem,
+  Navigation,
+  PanelSection,
+  PanelSectionRow,
+  TextField,
+  staticClasses,
+} from "@decky/ui";
+import { callable, definePlugin, toaster } from "@decky/api";
+import { useEffect, useState } from "react";
+import { GiSpellBook } from "react-icons/gi";
+
+interface BuildSection {
+  title: string;
+  items: string[];
+}
+
+interface Build {
+  id: string;
+  name: string;
+  provider: string;
+  source_url: string;
+  notes: string;
+  sections: BuildSection[];
+  pinned: boolean;
+  added_at: number;
+}
+
+const addBuild = callable<[url: string, notes: string], Build>("add_build");
+const getBuilds = callable<[], Build[]>("get_builds");
+const removeBuild = callable<[build_id: string], Build[]>("remove_build");
+const togglePin = callable<[build_id: string], Build[]>("toggle_pin");
+const refreshBuild = callable<[build_id: string], Build[]>("refresh_build");
+
+const PROVIDER_LABELS: Record<string, string> = {
+  mobalytics: "Mobalytics",
+  maxroll: "Maxroll",
+  d4builds: "d4builds.gg",
+  web: "Web",
+};
+
+function openGuide(url: string) {
+  Navigation.CloseSideMenus();
+  Navigation.NavigateToExternalWeb(url);
+}
+
+function BuildDetail({
+  build,
+  onBack,
+  onChanged,
+}: {
+  build: Build;
+  onBack: () => void;
+  onChanged: (builds: Build[]) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  const run = async (action: () => Promise<Build[]>, thenBack = false) => {
+    setBusy(true);
+    try {
+      onChanged(await action());
+      if (thenBack) onBack();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <PanelSection title={build.name}>
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={onBack}>
+            ← Back to library
+          </ButtonItem>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem
+            layout="below"
+            onClick={() => openGuide(build.source_url)}
+            description={PROVIDER_LABELS[build.provider] ?? build.provider}
+          >
+            Open full guide
+          </ButtonItem>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem
+            layout="below"
+            disabled={busy}
+            onClick={() => run(() => togglePin(build.id))}
+          >
+            {build.pinned ? "Unpin" : "Pin as current build"}
+          </ButtonItem>
+        </PanelSectionRow>
+      </PanelSection>
+
+      {build.sections.map((section) => (
+        <PanelSection key={section.title} title={section.title}>
+          {section.items.map((item, i) => (
+            <PanelSectionRow key={i}>
+              <div style={{ fontSize: "0.9em", padding: "2px 0" }}>{item}</div>
+            </PanelSectionRow>
+          ))}
+        </PanelSection>
+      ))}
+
+      {build.notes && (
+        <PanelSection title="Notes">
+          <PanelSectionRow>
+            <div style={{ fontSize: "0.9em", whiteSpace: "pre-wrap" }}>
+              {build.notes}
+            </div>
+          </PanelSectionRow>
+        </PanelSection>
+      )}
+
+      <PanelSection title="Manage">
+        <PanelSectionRow>
+          <ButtonItem
+            layout="below"
+            disabled={busy}
+            onClick={() => run(() => refreshBuild(build.id))}
+            description="Re-fetch the guide title and data"
+          >
+            Refresh from source
+          </ButtonItem>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem
+            layout="below"
+            disabled={busy}
+            onClick={() => run(() => removeBuild(build.id), true)}
+          >
+            Remove from library
+          </ButtonItem>
+        </PanelSectionRow>
+      </PanelSection>
+    </>
+  );
+}
+
+function Content() {
+  const [builds, setBuilds] = useState<Build[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [url, setUrl] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  useEffect(() => {
+    getBuilds().then(setBuilds);
+  }, []);
+
+  const selected = builds.find((b) => b.id === selectedId);
+  if (selected) {
+    return (
+      <BuildDetail
+        build={selected}
+        onBack={() => setSelectedId(null)}
+        onChanged={setBuilds}
+      />
+    );
+  }
+
+  const onAdd = async () => {
+    if (!url.trim()) return;
+    setAdding(true);
+    try {
+      const build = await addBuild(url.trim(), "");
+      setBuilds(await getBuilds());
+      setUrl("");
+      toaster.toast({ title: "Grimoire", body: `Saved "${build.name}"` });
+    } catch (e) {
+      toaster.toast({ title: "Grimoire", body: "Could not save that link" });
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  return (
+    <>
+      <PanelSection title="Add a build">
+        <PanelSectionRow>
+          <TextField
+            label="Guide link"
+            description="Paste a Mobalytics, Maxroll or d4builds.gg URL"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+          />
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem layout="below" disabled={adding || !url.trim()} onClick={onAdd}>
+            {adding ? "Saving…" : "Save to library"}
+          </ButtonItem>
+        </PanelSectionRow>
+      </PanelSection>
+
+      <PanelSection title="Library">
+        {builds.length === 0 && (
+          <PanelSectionRow>
+            <div style={{ fontSize: "0.9em" }}>
+              No builds yet. Paste a guide link above — it will be waiting here,
+              one button press away, while you play.
+            </div>
+          </PanelSectionRow>
+        )}
+        {builds.map((b) => (
+          <PanelSectionRow key={b.id}>
+            <ButtonItem
+              layout="below"
+              onClick={() => setSelectedId(b.id)}
+              description={PROVIDER_LABELS[b.provider] ?? b.provider}
+            >
+              {b.pinned ? `★ ${b.name}` : b.name}
+            </ButtonItem>
+          </PanelSectionRow>
+        ))}
+      </PanelSection>
+    </>
+  );
+}
+
+export default definePlugin(() => ({
+  name: "Grimoire",
+  titleView: <div className={staticClasses.Title}>Grimoire</div>,
+  content: <Content />,
+  icon: <GiSpellBook />,
+}));

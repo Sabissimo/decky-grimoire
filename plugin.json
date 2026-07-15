@@ -1,0 +1,11 @@
+{
+  "name": "Grimoire",
+  "author": "sabissimo",
+  "flags": [],
+  "api_version": 1,
+  "publish": {
+    "tags": ["build-guides", "diablo-4", "arpg", "overlay"],
+    "description": "Your ARPG build guides one button press away. Save builds from Mobalytics, Maxroll or d4builds.gg, pin the one you're playing, and check skills, gear affixes and notes from the Quick Access menu without leaving your game.",
+    "image": "https://opengraph.githubassets.com/1/sabissimo/decky-grimoire"
+  }
+}

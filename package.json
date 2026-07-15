@@ -1,0 +1,40 @@
+{
+  "name": "decky-grimoire",
+  "version": "0.1.0",
+  "description": "Grimoire - your ARPG build guides in the Steam Deck Quick Access overlay",
+  "type": "module",
+  "scripts": {
+    "build": "rollup -c",
+    "watch": "rollup -c -w"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sabissimo/decky-grimoire.git"
+  },
+  "keywords": [
+    "decky",
+    "plugin",
+    "steam-deck",
+    "diablo-4",
+    "arpg"
+  ],
+  "author": "sabissimo",
+  "license": "BSD-3-Clause",
+  "devDependencies": {
+    "@decky/api": "^1.1.2",
+    "@decky/rollup": "^1.0.1",
+    "@decky/ui": "^4.9.4",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "react-icons": "^5.2.1"
+  },
+  "pnpm": {
+    "peerDependencyRules": {
+      "ignoreMissing": [
+        "react",
+        "react-dom"
+      ]
+    }
+  }
+}
