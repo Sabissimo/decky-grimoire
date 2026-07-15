@@ -1,0 +1,37 @@
+name: Test & build plugin
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run backend tests
+        run: python3 -m unittest discover -s tests -v
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm ci
+      - name: Build frontend
+        run: npm run build
+      - name: Package plugin zip (Decky "install from zip" layout)
+        run: |
+          mkdir -p out/decky-grimoire
+          cp -r dist main.py py_modules plugin.json package.json LICENSE README.md out/decky-grimoire/
+          find out -name __pycache__ -type d -exec rm -rf {} +
+          cd out && zip -r ../decky-grimoire.zip decky-grimoire
+      - uses: actions/upload-artifact@v4
+        with:
+          name: decky-grimoire
+          path: decky-grimoire.zip

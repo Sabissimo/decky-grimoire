@@ -20,21 +20,44 @@ Epoch, ...).
   while your game keeps running
 - 🔌 **Provider detection** — recognizes Mobalytics, Maxroll and d4builds.gg
   links and fetches a readable title for each entry
+- 🧩 **Structured parsing (experimental)** — skills, gear, paragon boards and
+  guide outlines rendered natively in the panel when the guide page exposes
+  them. Parsers scan embedded JSON for recognizable build structures rather
+  than relying on exact paths, so site redesigns degrade to fewer sections
+  instead of errors. **Needs live validation** — see below.
 - 📴 **Offline-friendly** — your library is stored locally; adding a link
   while offline still works (title fills in on refresh)
 
+### Validating parsers against real pages
+
+This repo is developed in an environment that cannot reach the guide sites,
+so the provider endpoint guesses (`CANDIDATE_*` constants in
+`py_modules/grimoire/providers/*.py`) need checking from a normal network:
+
+```bash
+python3 scripts/validate_live.py https://maxroll.gg/d4/planner/<id>
+```
+
+It prints the provider, title and every parsed section. Title but no
+sections = that provider's structured parsing needs work; open an issue
+with the output.
+
 ### Roadmap
 
-- Structured build parsing per provider: skill order, gear affix cheat-sheet
-  and paragon steps rendered natively in the panel (see
-  `py_modules/grimoire/providers/*.py` stubs)
+- Validate + harden the provider parsers against live pages
+- Game-data ID mapping for Maxroll planner profiles (skill/affix names)
 - Leveling checklist mode that remembers which step you're on
 - Per-build notes editing in the panel
-- More games via the same provider system
+- More games via the same provider system (PoE2, Last Epoch)
 
 ## Installation
 
-Grimoire is not in the Decky store yet. To try it from source:
+Grimoire is not in the Decky store yet. The easiest way to try it: grab
+`decky-grimoire.zip` from the latest [Actions run](../../actions) and use
+Decky's *Developer → Install plugin from zip* (requires developer mode in
+Decky settings).
+
+To build from source instead:
 
 ```bash
 pnpm install
