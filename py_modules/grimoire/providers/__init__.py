@@ -8,7 +8,9 @@ back to the generic behaviour, so a site redesign can never break the
 library itself.
 """
 import html
+import os
 import re
+import ssl
 import urllib.request
 
 from grimoire.parseutil import strip_tags  # noqa: F401  (re-exported for tests)
@@ -17,6 +19,32 @@ USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) decky-grimoire/0.1 "
     "(+https://github.com/sabissimo/decky-grimoire)"
 )
+
+# Decky's bundled Python ships an OpenSSL whose default CA paths don't
+# exist on SteamOS, so a plain urlopen(https) dies with
+# CERTIFICATE_VERIFY_FAILED on the Deck. Load the system bundle explicitly.
+_CA_CANDIDATES = (
+    os.environ.get("SSL_CERT_FILE"),
+    "/etc/ssl/certs/ca-certificates.crt",  # SteamOS / Arch
+    "/etc/ssl/cert.pem",
+)
+
+
+def _ssl_context() -> ssl.SSLContext:
+    ctx = ssl.create_default_context()
+    if ctx.cert_store_stats().get("x509_ca"):
+        return ctx  # default verify paths worked (dev machines)
+    for cafile in _CA_CANDIDATES:
+        if cafile and os.path.isfile(cafile):
+            try:
+                ctx.load_verify_locations(cafile)
+                return ctx
+            except ssl.SSLError:
+                continue
+    return ctx
+
+
+_SSL_CONTEXT = _ssl_context()
 
 PROVIDERS = {
     "mobalytics.gg": "mobalytics",
@@ -47,7 +75,7 @@ def _get_parser(provider: str):
 def http_get(url: str, max_bytes: int = 2_000_000, timeout: int = 10) -> str:
     """Blocking GET returning decoded text. Callers run in an executor."""
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
+    with urllib.request.urlopen(req, timeout=timeout, context=_SSL_CONTEXT) as resp:
         return resp.read(max_bytes).decode("utf-8", errors="replace")
 
 

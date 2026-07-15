@@ -357,10 +357,15 @@ function Content() {
   const [url, setUrl] = useState("");
   const [adding, setAdding] = useState(false);
   const [sectionOrder, setSectionOrderState] = useState<string[]>([]);
+  const [backendDown, setBackendDown] = useState(false);
 
   useEffect(() => {
-    getBuilds().then(setBuilds);
-    getSectionOrder().then(setSectionOrderState);
+    // If the backend never loaded (import error, wrong Decky version),
+    // every button dies silently - surface it instead.
+    getBuilds()
+      .then(setBuilds)
+      .catch(() => setBackendDown(true));
+    getSectionOrder().then(setSectionOrderState).catch(() => {});
   }, []);
 
   const selected = builds.find((b) => b.id === selectedId);
@@ -377,15 +382,27 @@ function Content() {
   }
 
   const onAdd = async () => {
-    if (!url.trim()) return;
+    const link = url.trim();
+    if (!link) {
+      // Never fail silently: if the virtual keyboard didn't commit the
+      // text, the user needs to know the field still looks empty.
+      toaster.toast({
+        title: "Grimoire",
+        body: "The link field looks empty — type or paste a guide URL first",
+      });
+      return;
+    }
     setAdding(true);
     try {
-      const build = await addBuild(url.trim(), "");
+      const build = await addBuild(link, "");
       setBuilds(await getBuilds());
       setUrl("");
       toaster.toast({ title: "Grimoire", body: `Saved "${build.name}"` });
     } catch (e) {
-      toaster.toast({ title: "Grimoire", body: "Could not save that link" });
+      toaster.toast({
+        title: "Grimoire",
+        body: `Could not save: ${String(e).slice(0, 140)}`,
+      });
     } finally {
       setAdding(false);
     }
@@ -393,6 +410,17 @@ function Content() {
 
   return (
     <>
+      {backendDown && (
+        <PanelSection title="Backend not responding">
+          <PanelSectionRow>
+            <div style={{ fontSize: "0.9em" }}>
+              Grimoire's backend didn't answer. Restart Decky Loader, and if
+              it persists check the log at homebrew/logs/Grimoire on the
+              Deck.
+            </div>
+          </PanelSectionRow>
+        </PanelSection>
+      )}
       <PanelSection title="Add a build">
         <PanelSectionRow>
           <TextField
@@ -400,10 +428,14 @@ function Content() {
             description="Paste a Mobalytics, Maxroll or d4builds.gg URL"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
+            onBlur={(e) => setUrl((e.target as HTMLInputElement).value)}
           />
         </PanelSectionRow>
         <PanelSectionRow>
-          <ButtonItem layout="below" disabled={adding || !url.trim()} onClick={onAdd}>
+          {/* Enabled even when the field looks empty: on the Deck the
+              virtual keyboard can commit text without firing onChange, and
+              a dead disabled button gives the user zero feedback. */}
+          <ButtonItem layout="below" disabled={adding} onClick={onAdd}>
             {adding ? "Saving…" : "Save to library"}
           </ButtonItem>
         </PanelSectionRow>
