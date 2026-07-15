@@ -24,6 +24,10 @@ Epoch, ...).
   guide's variants with one dropdown.
 - ↕️ **Your order** — mostly check gear? Move that section up once and it
   stays first, in every build.
+- ✅ **Leveling checklist** — check off skills and steps as you take them;
+  Grimoire remembers where you left off, per build and variant.
+- 📝 **Notes** — jot down your own reminders on any build, right in the
+  panel.
 - 🌐 **Open full guide** — for the details only the full page has (like
   paragon pathing), jump to the guide in the built-in browser while your
   game keeps running.
@@ -38,10 +42,6 @@ up.
 ### Roadmap
 
 - Testing on real Steam Deck hardware
-- Full detail for Maxroll planner links (they currently show less than
-  the other sites)
-- A leveling checklist that remembers which step you're on
-- Editing your build notes right in the panel
 - More games (Path of Exile 2, Last Epoch) and the Decky store
 
 ## Installation

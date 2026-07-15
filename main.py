@@ -54,7 +54,7 @@ class Plugin:
         try:
             meta = await asyncio.wait_for(
                 asyncio.get_event_loop().run_in_executor(None, fetch_metadata, url),
-                timeout=15,
+                timeout=45,  # first Maxroll planner add fetches ~12 MB of game data
             )
         except Exception as e:  # offline, bad URL, site down - still save the link
             decky.logger.warning("metadata fetch failed for %s: %s", url, e)
@@ -157,7 +157,7 @@ class Plugin:
                         asyncio.get_event_loop().run_in_executor(
                             None, fetch_metadata, b["source_url"]
                         ),
-                        timeout=15,
+                        timeout=45,  # first Maxroll planner add fetches ~12 MB of game data
                     )
                     b["name"] = meta.get("title") or b["name"]
                     b["sections"] = meta.get("sections", b.get("sections", []))

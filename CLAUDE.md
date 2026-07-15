@@ -69,10 +69,17 @@ uploads a sideload-ready `decky-grimoire.zip` artifact.
     them). Variant names come from `childrenVariants` descriptors.
   - Maxroll planner: `https://planners.maxroll.gg/profiles/load/{game}/{pid}`
     (no auth, no special headers; 404 + `{"error": "Profile not found"}`
-    for dead ids). The outer payload's `search_metadata` has plain-language
-    skill/item names; deeper detail (per-variant stats/tempers) needs the
-    game-data ID mapping (see roadmap). Guide articles embed the same
-    planner payloads; anchor on `search_metadata` there too.
+    for dead ids). Full detail comes from the public game-data file
+    (`assets-ng.maxroll.gg/d4-tools/game/data.min.json`, ~12 MB, fetched
+    once per plugin process): affix labels are attributeDescriptions
+    templates stripped of placeholders; aspects are magicType-1 affixes
+    whose `prefix` is the aspect short name; profile `class` is an index
+    into `classes`; skill-tree node ids collide ACROSS classes — never
+    merge trees; runes/gems resolve through `items`. Each planner profile
+    is a variant. If the game-data fetch fails, `search_metadata` (plain
+    name lists) is the fallback. Guide articles embed the same planner
+    payloads; anchor on `search_metadata` there. main.py's fetch timeout
+    is 45s because of that first 12 MB download.
   - d4builds: build docs live in public Firestore (project `d4builds-a3254`,
     collection `builds`, REST API, no key). Named-build slugs resolve to
     uuids via Gatsby `page-data/builds/<slug>/page-data.json` →
@@ -93,11 +100,12 @@ uploads a sideload-ready `decky-grimoire.zip` artifact.
   with `TextField`, focus navigation, `Navigation.NavigateToExternalWeb`
   behaviour from Quick Access while a game runs, DropdownItem in the
   variant selector, reorder-mode focus flow.
-- Roadmap (in rough order): on-Deck smoke test → Maxroll game-data ID
-  mapping (planner detail parity) → per-build notes editing in the panel
-  → leveling checklist mode (remember current step) → more games (PoE2 /
-  Last Epoch providers) → Decky store submission (repo is BSD-3-Clause,
-  store requires OSI license — done).
+- Roadmap (in rough order): on-Deck smoke test (blocked on hardware; the
+  user will run it) → more games (PoE2 / Last Epoch providers — SHELVED
+  until asked) → Decky store submission (repo is BSD-3-Clause, store
+  requires OSI license — done). Done and shipped: Maxroll planner detail
+  parity, per-build notes editing, leveling checklist, section reordering,
+  build variants.
 
 ## Conventions
 

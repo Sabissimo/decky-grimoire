@@ -451,6 +451,110 @@ class MaxrollTests(unittest.TestCase):
         gear = next(s for s in meta["sections"] if s["title"] == "Gear")
         self.assertEqual(gear["items"], ["Kessime's Legacy"])
 
+    def test_planner_deep_parse_with_game_data(self):
+        # The game-data file maps every id the planner references; each
+        # profile becomes a variant with full sections and markers.
+        game_data = {
+            "attributes": {
+                "10": {"name": "Intelligence"},
+                "11": {"name": "Flat_Hitpoints_Max_Bonus_Unscaled_By_Player_Health"},
+            },
+            "attributeDescriptions": {
+                "Flat_Hitpoints_Max_Bonus_Unscaled_By_Player_Health":
+                    "+[{value}||] Maximum Life",
+            },
+            "affixes": {
+                "S04_CoreStat_Int": {"id": 100, "magicType": 0,
+                                     "attributes": [{"id": 10}]},
+                "S04_Life": {"id": 101, "magicType": 0,
+                             "attributes": [{"id": 11}]},
+                "legendary_sorc_1": {"id": 200, "magicType": 1,
+                                     "prefix": "Lingering",
+                                     "attributes": [{"id": 10}]},
+            },
+            "items": {
+                "Helm_Legendary_1": {"name": "Runic Skullcap", "type": "Helm"},
+                "Rune_Cir": {"name": "Cir", "type": "Rune"},
+            },
+            "skills": {"Sorcerer_BallLightning": {"id": 1, "name": "Ball Lightning"}},
+            "skillTrees": {
+                "Sorcerer": {"nodes": [
+                    {"id": 605, "reward": {"power": "Sorcerer_BallLightning"}},
+                    {"id": 606, "reward": {"power": "Sorcerer_BallLightning"}},
+                ]}
+            },
+            "classes": {"0": {"nameMale": "Sorcerer"}},
+            "paragonGlyphs": {"Rare_1": {"name": "Exploit"}},
+            "paragonBoards": {"Paragon_Sorc_00": {"name": "Start"}},
+        }
+        inner = {
+            "profiles": [
+                {
+                    "name": "Endgame",
+                    "class": 0,
+                    "skillBar": ["Sorcerer_BallLightning"],
+                    "skillTree": {"steps": [{"name": "Final",
+                                             "data": {"605": 15, "606": 1}}]},
+                    "items": {"4": 1},
+                    "paragon": {"steps": [{"name": "Final", "data": [
+                        {"id": "Paragon_Sorc_00", "glyph": "Rare_1",
+                         "glyphLevel": 100, "rotation": 2},
+                    ]}]},
+                }
+            ],
+            "items": {
+                "1": {
+                    "id": "Helm_Legendary_1",
+                    "explicits": [
+                        {"nid": 100, "greater": True},
+                        {"nid": 101},
+                    ],
+                    "tempered": [{"nid": 101}],
+                    "aspects": [{"nid": 200}],
+                    "sockets": ["Rune_Cir"],
+                }
+            },
+        }
+        payload = {"name": "BL Sorc", "data": json.dumps(inner)}
+
+        def fake_get(url, **kwargs):
+            if "planners.maxroll.gg" in url:
+                return json.dumps(payload)
+            if "data.min.json" in url:
+                return json.dumps(game_data)
+            return "<title>Maxroll Planner</title>"
+
+        # The game-data cache is module state; isolate this test from
+        # whatever another test (or run order) left in it.
+        from grimoire.providers import maxroll
+        maxroll._GAME_MAPS.clear()
+        try:
+            meta = fetch_metadata("https://maxroll.gg/d4/planner/deep1", get=fake_get)
+        finally:
+            maxroll._GAME_MAPS.clear()
+
+        self.assertEqual([v["name"] for v in meta["variants"]], ["Endgame"])
+        by_title = {s["title"]: s["items"] for s in meta["sections"]}
+        self.assertEqual(by_title["Skills"], ["Ball Lightning"])
+        self.assertEqual(by_title["Skill Tree"], ["Ball Lightning (15) +1 upgrade"])
+        self.assertEqual(
+            by_title["Gear"], ["Helm: Runic Skullcap — Lingering Aspect"]
+        )
+        self.assertEqual(
+            by_title["Stat Priorities"],
+            [
+                "Helm · Runic Skullcap",
+                "  – ✱ Intelligence",
+                "  – Maximum Life",
+                "  – Temper: Maximum Life",
+                "  – Sockets: Cir",
+            ],
+        )
+        self.assertEqual(
+            by_title["Paragon Boards"],
+            ["1. Start — Exploit (100) · rotate 180°"],
+        )
+
     def test_page_fetch_failure_still_parses_planner(self):
         # maxroll.gg has been seen tarpitting page fetches while the
         # planner API keeps answering - the page GET must be best-effort.
