@@ -13,7 +13,10 @@ python3 scripts/validate_live.py <guide-url> # parse a REAL guide page (needs op
 ```
 
 CI (`.github/workflows/build.yml`) runs tests + build on every push and
-uploads a sideload-ready `decky-grimoire.zip` artifact.
+uploads a sideload-ready `decky-grimoire.zip` artifact. Pushing a `v*` tag
+additionally attaches the zip to a GitHub release with generated notes
+(same flow as the user's other decky-* repos). Release = tag `vX.Y.Z`
+matching package.json's version, then `git push origin vX.Y.Z`.
 
 ## Architecture
 

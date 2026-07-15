@@ -47,9 +47,10 @@ up.
 ## Installation
 
 Grimoire is not in the Decky store yet. The easiest way to try it: grab
-`decky-grimoire.zip` from the latest [Actions run](../../actions) and use
-Decky's *Developer → Install plugin from zip* (requires developer mode in
-Decky settings).
+`decky-grimoire.zip` from the latest [release](../../releases/latest) and
+use Decky's *Developer → Install plugin from zip* (requires developer mode
+in Decky settings). Fresh-from-main builds are also available as
+[Actions](../../actions) artifacts.
 
 To build from source instead:
 
