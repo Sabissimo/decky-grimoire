@@ -158,14 +158,31 @@ def _stat_priorities(variant) -> list:
     say which is which, so sockets aggregate into one row and tempers get a
     'Temper ✱' label. Mobalytics doesn't publish greater-affix picks; only
     d4builds carries those.
+
+    Headers lead with the SLOT ('Ring 1 · Aspect of the Moonrise') - a
+    build has four aspect-named rings and pants, and without the slot the
+    reader can't tell which item a stat block belongs to. The clean item
+    title comes from genericBuilder (the priority-list slug drags the
+    class name along, 'aspect-of-debilitating-toxins-spiritborn').
     """
+    titles = {}  # slot slug -> clean item title
+    for slot in (variant.get("genericBuilder") or {}).get("slots") or []:
+        if isinstance(slot, dict):
+            title = (slot.get("gameEntity") or {}).get("title")
+            if isinstance(title, str) and title.strip():
+                titles[slot.get("gameSlotSlug")] = title.strip()
+
     lines = []
     for item in variant.get("equipmentPriorityList") or []:
         if not isinstance(item, dict):
             continue
-        name = _pretty(item.get("slug"))
+        slot = item.get("type")
+        name = titles.get(slot) or _pretty(item.get("slug"))
         if not name:
             continue
+        slot_name = _pretty(slot)
+        if slot_name:
+            name = f"{slot_name} · {name}"
         rows, sockets = [], {}
         socket_row_at = None
         for mod in item.get("modifiers") or []:

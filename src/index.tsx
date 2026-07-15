@@ -93,15 +93,35 @@ function BuildDetail({
         </PanelSectionRow>
       </PanelSection>
 
-      {build.sections.map((section) => (
-        <PanelSection key={section.title} title={section.title}>
-          {section.items.map((item, i) => (
-            <PanelSectionRow key={i}>
-              <div style={{ fontSize: "0.9em", padding: "2px 0" }}>{item}</div>
-            </PanelSectionRow>
-          ))}
-        </PanelSection>
-      ))}
+      {build.sections.map((section) => {
+        // Providers emit hierarchical sections (an item/skill header with
+        // "  – " sub-rows). Leading whitespace collapses in HTML, so the
+        // hierarchy must be restored with styling: headers bold, sub-rows
+        // indented and dimmed. Flat sections keep the plain look.
+        const hierarchical = section.items.some((it) => it.startsWith("  "));
+        return (
+          <PanelSection key={section.title} title={section.title}>
+            {section.items.map((item, i) => {
+              const sub = item.startsWith("  ");
+              return (
+                <PanelSectionRow key={i}>
+                  <div
+                    style={{
+                      fontSize: "0.9em",
+                      padding: "2px 0",
+                      paddingLeft: sub ? "14px" : 0,
+                      fontWeight: hierarchical && !sub ? 600 : 400,
+                      opacity: sub ? 0.85 : 1,
+                    }}
+                  >
+                    {item.trim()}
+                  </div>
+                </PanelSectionRow>
+              );
+            })}
+          </PanelSection>
+        );
+      })}
 
       {build.notes && (
         <PanelSection title="Notes">

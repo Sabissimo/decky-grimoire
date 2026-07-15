@@ -170,6 +170,9 @@ def _stat_priorities(doc) -> list:
     master = doc.get("masterworking") or {}
     tempering = doc.get("temperingStats") or {}
     gems = _first_live_map(doc, "newGems", "gems")
+    # Headers read 'Helm · Tuskhelm of Joritz the Mighty' - the slot alone
+    # doesn't say which aspect/unique the stat block belongs to.
+    gear = doc.get("gear") if isinstance(doc.get("gear"), dict) else {}
 
     lines = []
     for slot in sorted(stats, key=_slot_rank):
@@ -204,6 +207,12 @@ def _stat_priorities(doc) -> list:
                 + ", ".join(s if n == 1 else f"{s} ×{n}" for s, n in sockets.items())
             )
         if rows:
-            lines.append(slot)
+            item = gear.get(slot)
+            header = (
+                f"{slot} · {item.strip()}"
+                if isinstance(item, str) and item.strip()
+                else slot
+            )
+            lines.append(header)
             lines.extend(rows)
     return lines

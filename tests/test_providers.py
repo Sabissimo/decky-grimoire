@@ -222,7 +222,8 @@ class MobalyticsTests(unittest.TestCase):
             },
             "equipmentPriorityList": [
                 {
-                    "slug": "harlequin-crest",
+                    "slug": "harlequin-crest-sorcerer",  # slug drags class name
+                    "type": "helm",
                     "modifiers": [
                         {"slug": "maximum-life", "type": "gear"},
                         {"slug": "emerald", "type": "socket"},
@@ -293,11 +294,12 @@ class MobalyticsTests(unittest.TestCase):
         )
         # Charm slots stay out of gear; uniques are flagged.
         self.assertEqual(by_title["Gear"], ["Helm: Harlequin Crest (Unique)"])
-        # Item header + indented rows; sockets aggregate, tempers are marked.
+        # Slot-first header with the clean genericBuilder title (not the
+        # class-suffixed slug); sockets aggregate, tempers are marked.
         self.assertEqual(
             by_title["Stat Priorities"],
             [
-                "Harlequin Crest",
+                "Helm · Harlequin Crest",
                 "  – Maximum Life",
                 "  – Sockets: Emerald ×2",
                 "  – Temper ✱ Worldly Endurance Maximum Life",
@@ -497,7 +499,7 @@ class D4BuildsTests(unittest.TestCase):
         self.assertEqual(
             by_title["Stat Priorities"],
             [
-                "Helm",
+                "Helm · Tuskhelm of Joritz the Mighty",
                 "  – Strength",
                 "  – ✱ Cooldown Reduction",
                 "  – Maximum Life (masterwork)",
