@@ -20,13 +20,24 @@ Epoch, ...).
   while your game keeps running
 - 🔌 **Provider detection** — recognizes Mobalytics, Maxroll and d4builds.gg
   links and fetches a readable title for each entry
-- 🧩 **Structured parsing** — skills, gear, paragon boards and guide
-  outlines rendered natively in the panel. All three providers were
-  validated against live pages (2026-07): Mobalytics build guides, Maxroll
-  planners & build-guide articles, and d4builds.gg builds (both named metas
-  and shared custom-build uuids). Parsers scan embedded JSON / provider APIs
-  for recognizable build structures rather than relying on exact paths, so
-  site redesigns degrade to fewer sections instead of errors.
+- 🧩 **Full build detail, natively in the panel** — skill bar, skill tree
+  with ranks, gear per slot, per-item stat priorities, paragon boards with
+  glyphs/levels/rotations, charms, mercenaries and class mechanics (spirit
+  hall, enchantments). Stat rows carry the markers that matter when gear
+  hunting: ✱ for the greater-affix pick, `(masterwork)` for the
+  masterwork-crit target, labeled temper and socket rows.
+- 🔀 **Build variants** — guides ship several builds (Starter / Endgame /
+  Pushing...); a dropdown switches between them, each with its own full
+  section set.
+- ↕️ **Reorderable sections** — mostly check gear? Move it up once and the
+  order sticks, across every build and variant (controller-friendly
+  move-up rows, not drag-and-drop).
+- 🛡️ **Resilient parsing** — all three providers validated against live
+  pages (2026-07): Mobalytics build guides, Maxroll planners & build-guide
+  articles, d4builds.gg builds (named metas and shared custom-build uuids).
+  Parsers scan embedded JSON / provider APIs for recognizable build
+  structures rather than exact paths, so site redesigns degrade to fewer
+  sections instead of errors — saving a link always works.
 - 📴 **Offline-friendly** — your library is stored locally; adding a link
   while offline still works (title fills in on refresh)
 
@@ -45,11 +56,14 @@ with the output.
 
 ### Roadmap
 
-- Validate + harden the provider parsers against live pages
-- Game-data ID mapping for Maxroll planner profiles (skill/affix names)
+- Smoke test on real Steam Deck hardware (virtual keyboard, focus
+  navigation, in-game browser hand-off)
+- Maxroll game-data ID mapping — bring its planner detail (per-variant
+  stats, tempers, greater affixes) up to Mobalytics/d4builds parity
 - Leveling checklist mode that remembers which step you're on
 - Per-build notes editing in the panel
 - More games via the same provider system (PoE2, Last Epoch)
+- Decky store submission
 
 ## Installation
 
@@ -61,8 +75,8 @@ Decky settings).
 To build from source instead:
 
 ```bash
-pnpm install
-pnpm run build
+npm install
+npm run build
 ```
 
 Then copy the plugin to your Deck (or develop with
@@ -83,10 +97,10 @@ decky-grimoire/
 - **Frontend** — `src/index.tsx`, React via
   [@decky/ui](https://github.com/SteamDeckHomebrew/decky-frontend-lib) +
   [@decky/api](https://github.com/SteamDeckHomebrew/decky-api).
-  `pnpm run watch` rebuilds on change.
+  `npm run watch` rebuilds on change.
 - **Backend** — `main.py` + `py_modules/grimoire/`. Pure stdlib Python
-  (no vendored dependencies needed). Builds are stored as JSON in the
-  plugin settings directory.
+  (no vendored dependencies needed). Builds and preferences are stored as
+  JSON in the plugin settings directory.
 - **Providers** — `py_modules/grimoire/providers/` contains one module per
   guide site. The generic fallback (og:title scrape + open-in-browser)
   always works; structured parsers must degrade to it gracefully.
