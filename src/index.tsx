@@ -1,6 +1,7 @@
 import {
   ButtonItem,
   DropdownItem,
+  Focusable,
   Navigation,
   PanelSection,
   PanelSectionRow,
@@ -29,6 +30,7 @@ interface Build {
   notes: string;
   sections: BuildSection[];
   variants?: BuildVariant[];
+  progress?: Record<string, boolean>;
   pinned: boolean;
   added_at: number;
 }
@@ -40,6 +42,11 @@ const togglePin = callable<[build_id: string], Build[]>("toggle_pin");
 const refreshBuild = callable<[build_id: string], Build[]>("refresh_build");
 const getSectionOrder = callable<[], string[]>("get_section_order");
 const setSectionOrder = callable<[order: string[]], string[]>("set_section_order");
+const setNotes = callable<[build_id: string, notes: string], Build[]>("set_notes");
+const toggleStep = callable<[build_id: string, key: string], Build[]>("toggle_step");
+const clearProgress = callable<[build_id: string, prefix: string], Build[]>(
+  "clear_progress",
+);
 
 /** Sort sections by the user's preferred title order. Titles not in the
  * preference keep their natural relative order after the preferred ones
@@ -84,6 +91,9 @@ function BuildDetail({
   const [busy, setBusy] = useState(false);
   const [variantIdx, setVariantIdx] = useState(0);
   const [reordering, setReordering] = useState(false);
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesDraft, setNotesDraft] = useState(build.notes);
+  const [checklist, setChecklist] = useState(false);
 
   const run = async (action: () => Promise<Build[]>, thenBack = false) => {
     setBusy(true);
@@ -116,6 +126,19 @@ function BuildDetail({
     [titles[index - 1], titles[index]] = [titles[index], titles[index - 1]];
     onOrderChanged(await setSectionOrder(titles));
   };
+
+  // Checklist: progress keys are variant|section|row-index|row-text. The
+  // text is included so a refreshed guide whose rows shifted doesn't show
+  // stale checkmarks on the wrong lines - a changed row simply unchecks.
+  const variantKey = hasVariants ? variants[selected].name : "";
+  const progress = build.progress ?? {};
+  const stepKey = (sectionTitle: string, i: number, item: string) =>
+    `${variantKey}|${sectionTitle}|${i}|${item.trim()}`;
+  const checkedCount = sections.reduce(
+    (n, s) =>
+      n + s.items.filter((it, i) => progress[stepKey(s.title, i, it)]).length,
+    0,
+  );
 
   return (
     <>
@@ -160,6 +183,30 @@ function BuildDetail({
             </ButtonItem>
           </PanelSectionRow>
         )}
+        {sections.length > 0 && (
+          <PanelSectionRow>
+            <ButtonItem
+              layout="below"
+              onClick={() => setChecklist(!checklist)}
+              description={
+                checkedCount > 0 ? `${checkedCount} steps checked` : undefined
+              }
+            >
+              {checklist ? "Done checking" : "Checklist mode"}
+            </ButtonItem>
+          </PanelSectionRow>
+        )}
+        {checklist && checkedCount > 0 && (
+          <PanelSectionRow>
+            <ButtonItem
+              layout="below"
+              disabled={busy}
+              onClick={() => run(() => clearProgress(build.id, `${variantKey}|`))}
+            >
+              Reset checks{hasVariants ? " (this variant)" : ""}
+            </ButtonItem>
+          </PanelSectionRow>
+        )}
       </PanelSection>
 
       {reordering && (
@@ -189,19 +236,30 @@ function BuildDetail({
           <PanelSection key={section.title} title={section.title}>
             {section.items.map((item, i) => {
               const sub = item.startsWith("  ");
+              const key = stepKey(section.title, i, item);
+              const done = !!progress[key];
+              const text = (done ? "✓ " : checklist ? "○ " : "") + item.trim();
+              const style = {
+                fontSize: "0.9em",
+                padding: "2px 0",
+                paddingLeft: sub ? "14px" : 0,
+                fontWeight: hierarchical && !sub ? 600 : 400,
+                opacity: done ? 0.45 : sub ? 0.85 : 1,
+                textDecoration: done ? "line-through" : undefined,
+              } as const;
               return (
                 <PanelSectionRow key={i}>
-                  <div
-                    style={{
-                      fontSize: "0.9em",
-                      padding: "2px 0",
-                      paddingLeft: sub ? "14px" : 0,
-                      fontWeight: hierarchical && !sub ? 600 : 400,
-                      opacity: sub ? 0.85 : 1,
-                    }}
-                  >
-                    {item.trim()}
-                  </div>
+                  {checklist ? (
+                    <Focusable
+                      style={{ ...style, cursor: "pointer" }}
+                      onActivate={() => run(() => toggleStep(build.id, key))}
+                      onClick={() => run(() => toggleStep(build.id, key))}
+                    >
+                      {text}
+                    </Focusable>
+                  ) : (
+                    <div style={style}>{text}</div>
+                  )}
                 </PanelSectionRow>
               );
             })}
@@ -209,15 +267,64 @@ function BuildDetail({
         );
       })}
 
-      {build.notes && (
-        <PanelSection title="Notes">
-          <PanelSectionRow>
-            <div style={{ fontSize: "0.9em", whiteSpace: "pre-wrap" }}>
-              {build.notes}
-            </div>
-          </PanelSectionRow>
-        </PanelSection>
-      )}
+      <PanelSection title="Notes">
+        {editingNotes ? (
+          <>
+            <PanelSectionRow>
+              <TextField
+                label="Notes"
+                value={notesDraft}
+                onChange={(e) => setNotesDraft(e.target.value)}
+              />
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <ButtonItem
+                layout="below"
+                disabled={busy}
+                onClick={() =>
+                  run(() => setNotes(build.id, notesDraft)).then(() =>
+                    setEditingNotes(false),
+                  )
+                }
+              >
+                Save notes
+              </ButtonItem>
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <ButtonItem
+                layout="below"
+                onClick={() => {
+                  setNotesDraft(build.notes);
+                  setEditingNotes(false);
+                }}
+              >
+                Cancel
+              </ButtonItem>
+            </PanelSectionRow>
+          </>
+        ) : (
+          <>
+            {build.notes && (
+              <PanelSectionRow>
+                <div style={{ fontSize: "0.9em", whiteSpace: "pre-wrap" }}>
+                  {build.notes}
+                </div>
+              </PanelSectionRow>
+            )}
+            <PanelSectionRow>
+              <ButtonItem
+                layout="below"
+                onClick={() => {
+                  setNotesDraft(build.notes);
+                  setEditingNotes(true);
+                }}
+              >
+                {build.notes ? "Edit notes" : "Add notes"}
+              </ButtonItem>
+            </PanelSectionRow>
+          </>
+        )}
+      </PanelSection>
 
       <PanelSection title="Manage">
         <PanelSectionRow>

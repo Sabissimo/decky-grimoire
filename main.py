@@ -117,6 +117,36 @@ class Plugin:
         _save_builds(builds)
         return builds
 
+    async def toggle_step(self, build_id: str, key: str) -> list:
+        """Check/uncheck one checklist row. Keys are opaque to the backend
+        (the frontend encodes variant|section|row); progress is per build."""
+        builds = _load_builds()
+        for b in builds:
+            if b["id"] == build_id:
+                progress = b.setdefault("progress", {})
+                if key in progress:
+                    del progress[key]
+                else:
+                    progress[key] = True
+        _save_builds(builds)
+        return builds
+
+    async def clear_progress(self, build_id: str, prefix: str = "") -> list:
+        """Reset checklist progress; with a prefix, only that variant's."""
+        builds = _load_builds()
+        for b in builds:
+            if b["id"] == build_id:
+                if prefix:
+                    b["progress"] = {
+                        k: v
+                        for k, v in b.get("progress", {}).items()
+                        if not k.startswith(prefix)
+                    }
+                else:
+                    b["progress"] = {}
+        _save_builds(builds)
+        return builds
+
     async def refresh_build(self, build_id: str) -> list:
         """Re-fetch metadata/sections for a saved build."""
         builds = _load_builds()
