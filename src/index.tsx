@@ -38,6 +38,23 @@ const getBuilds = callable<[], Build[]>("get_builds");
 const removeBuild = callable<[build_id: string], Build[]>("remove_build");
 const togglePin = callable<[build_id: string], Build[]>("toggle_pin");
 const refreshBuild = callable<[build_id: string], Build[]>("refresh_build");
+const getSectionOrder = callable<[], string[]>("get_section_order");
+const setSectionOrder = callable<[order: string[]], string[]>("set_section_order");
+
+/** Sort sections by the user's preferred title order. Titles not in the
+ * preference keep their natural relative order after the preferred ones
+ * (sort is stable). An empty preference is a no-op. */
+function applySectionOrder(
+  sections: BuildSection[],
+  order: string[],
+): BuildSection[] {
+  if (!order.length) return sections;
+  const rank = new Map(order.map((t, i) => [t, i]));
+  return [...sections].sort(
+    (a, b) =>
+      (rank.get(a.title) ?? order.length) - (rank.get(b.title) ?? order.length),
+  );
+}
 
 const PROVIDER_LABELS: Record<string, string> = {
   mobalytics: "Mobalytics",
@@ -55,13 +72,18 @@ function BuildDetail({
   build,
   onBack,
   onChanged,
+  sectionOrder,
+  onOrderChanged,
 }: {
   build: Build;
   onBack: () => void;
   onChanged: (builds: Build[]) => void;
+  sectionOrder: string[];
+  onOrderChanged: (order: string[]) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [variantIdx, setVariantIdx] = useState(0);
+  const [reordering, setReordering] = useState(false);
 
   const run = async (action: () => Promise<Build[]>, thenBack = false) => {
     setBusy(true);
@@ -79,7 +101,21 @@ function BuildDetail({
   const variants = build.variants ?? [];
   const hasVariants = variants.length > 1;
   const selected = Math.min(variantIdx, Math.max(variants.length - 1, 0));
-  const sections = hasVariants ? variants[selected].sections : build.sections;
+  const sections = applySectionOrder(
+    hasVariants ? variants[selected].sections : build.sections,
+    sectionOrder,
+  );
+
+  // Reorder mode: selecting a section bumps it up one place. Deliberately
+  // not drag-and-drop - this must work with controller focus navigation.
+  // The saved order is the full materialized title list, so it holds
+  // across variants and other builds (it's a global preference).
+  const moveUp = async (index: number) => {
+    if (index <= 0) return;
+    const titles = sections.map((s) => s.title);
+    [titles[index - 1], titles[index]] = [titles[index], titles[index - 1]];
+    onOrderChanged(await setSectionOrder(titles));
+  };
 
   return (
     <>
@@ -117,9 +153,33 @@ function BuildDetail({
             />
           </PanelSectionRow>
         )}
+        {sections.length > 1 && (
+          <PanelSectionRow>
+            <ButtonItem layout="below" onClick={() => setReordering(!reordering)}>
+              {reordering ? "Done reordering" : "Reorder sections"}
+            </ButtonItem>
+          </PanelSectionRow>
+        )}
       </PanelSection>
 
-      {sections.map((section) => {
+      {reordering && (
+        <PanelSection title="Section order">
+          {sections.map((section, i) => (
+            <PanelSectionRow key={section.title}>
+              <ButtonItem
+                layout="below"
+                disabled={i === 0}
+                onClick={() => moveUp(i)}
+                description={i === 0 ? "Top" : "Select to move up"}
+              >
+                {`▲ ${section.title}`}
+              </ButtonItem>
+            </PanelSectionRow>
+          ))}
+        </PanelSection>
+      )}
+
+      {!reordering && sections.map((section) => {
         // Providers emit hierarchical sections (an item/skill header with
         // "  – " sub-rows). Leading whitespace collapses in HTML, so the
         // hierarchy must be restored with styling: headers bold, sub-rows
@@ -189,9 +249,11 @@ function Content() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [url, setUrl] = useState("");
   const [adding, setAdding] = useState(false);
+  const [sectionOrder, setSectionOrderState] = useState<string[]>([]);
 
   useEffect(() => {
     getBuilds().then(setBuilds);
+    getSectionOrder().then(setSectionOrderState);
   }, []);
 
   const selected = builds.find((b) => b.id === selectedId);
@@ -201,6 +263,8 @@ function Content() {
         build={selected}
         onBack={() => setSelectedId(null)}
         onChanged={setBuilds}
+        sectionOrder={sectionOrder}
+        onOrderChanged={setSectionOrderState}
       />
     );
   }

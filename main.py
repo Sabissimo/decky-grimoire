@@ -9,6 +9,7 @@ import decky  # type: ignore # provided by Decky Loader at runtime
 from grimoire.providers import detect_provider, fetch_metadata
 
 STORE_PATH = Path(decky.DECKY_PLUGIN_SETTINGS_DIR) / "builds.json"
+SETTINGS_PATH = Path(decky.DECKY_PLUGIN_SETTINGS_DIR) / "settings.json"
 
 
 def _load_builds() -> list:
@@ -25,6 +26,23 @@ def _save_builds(builds: list) -> None:
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(builds, f, indent=2)
     tmp.replace(STORE_PATH)
+
+
+def _load_settings() -> dict:
+    try:
+        with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def _save_settings(settings: dict) -> None:
+    SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    tmp = SETTINGS_PATH.with_suffix(".json.tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(settings, f, indent=2)
+    tmp.replace(SETTINGS_PATH)
 
 
 class Plugin:
@@ -63,6 +81,18 @@ class Plugin:
         builds = _load_builds()
         builds.sort(key=lambda b: (not b.get("pinned"), -b.get("added_at", 0)))
         return builds
+
+    async def get_section_order(self) -> list:
+        """Preferred section-title order (global: 'Gear first' should hold
+        for every build, not be re-set per build)."""
+        order = _load_settings().get("section_order", [])
+        return order if isinstance(order, list) else []
+
+    async def set_section_order(self, order: list) -> list:
+        settings = _load_settings()
+        settings["section_order"] = [str(t) for t in order]
+        _save_settings(settings)
+        return settings["section_order"]
 
     async def remove_build(self, build_id: str) -> list:
         builds = [b for b in _load_builds() if b["id"] != build_id]
