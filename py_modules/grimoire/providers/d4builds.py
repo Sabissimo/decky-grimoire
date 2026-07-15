@@ -86,4 +86,31 @@ def parse(url: str, page: str, http_get) -> dict:
             f" ({cls.strip()})" if isinstance(cls, str) and cls.strip() else ""
         )
     result["sections"] = sections_from_tree(doc)
+
+    # The paragon boards carry glyph + level; the generic scan renders only
+    # board names, so rebuild that section with the detail.
+    boards = _paragon_boards(doc)
+    if boards:
+        result["sections"] = [
+            s for s in result["sections"] if s["title"] != "Paragon Boards"
+        ] + [{"title": "Paragon Boards", "items": boards}]
     return result
+
+
+def _paragon_boards(doc) -> list:
+    lines = []
+    for board in (doc.get("paragon") or {}).get("boards") or []:
+        if not isinstance(board, dict):
+            continue
+        name = board.get("name")
+        if not isinstance(name, str) or not name.strip():
+            continue
+        line = name.strip()
+        glyph = board.get("glyph")
+        if isinstance(glyph, str) and glyph.strip():
+            level = board.get("glyphLevel")
+            line += f" — {glyph.strip()}" + (
+                f" ({int(level)})" if isinstance(level, (int, float)) and level else ""
+            )
+        lines.append(line)
+    return lines

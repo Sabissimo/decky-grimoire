@@ -192,6 +192,63 @@ class MobalyticsTests(unittest.TestCase):
         # Live shape (2026-07): build data in window.__PRELOADED_STATE__
         # under userGeneratedDocumentBySlug; other embeds carry OTHER
         # builds' data and must lose to the page's own document.
+        variant = {
+            "assignedSkills": {
+                "skills": [
+                    {"position": 2, "skill": {"name": "Ball Lightning"}},
+                    {"position": 1, "skill": {"name": "Ice Armor"}},
+                ],
+                "enchantments": [{"name": "Chain Lightning"}],
+                "spiritGuardians": {"primaryId": "eagle"},
+            },
+            "skillTree": {
+                "skills": [
+                    {"actionType": "ACTIVATE", "skill": {"slug": "ball-lightning"}},
+                    {"actionType": "ACTIVATE", "skill": {"slug": "ball-lightning"}},
+                    {"actionType": "ACTIVATE", "skill": {"slug": "ball-lightning-static"}},
+                ]
+            },
+            "genericBuilder": {
+                "slots": [
+                    {
+                        "gameSlotSlug": "helm",
+                        "gameEntity": {"title": "Harlequin Crest", "type": "uniqueItems"},
+                    },
+                    {
+                        "gameSlotSlug": "season-12-charm-1",
+                        "gameEntity": {"title": "Some Charm", "type": "charms"},
+                    },
+                ]
+            },
+            "equipmentPriorityList": [
+                {
+                    "slug": "harlequin-crest",
+                    "modifiers": [
+                        {"slug": "maximum-life"},
+                        {"slug": "emerald"},
+                        {"slug": "emerald"},
+                    ],
+                }
+            ],
+            "paragon": {
+                "boards": [
+                    {
+                        "board": {"slug": "sorcerer-starter-board"},
+                        "glyph": {"slug": "sorcerer-elementalist"},
+                        "glyphLevel": 100,
+                    }
+                ]
+            },
+            "mercenary": {
+                "primaryMercenary": {"slug": "raheir-the-shieldbearer"},
+                # A mercenary skillTree list must never shadow build skills.
+                "skillTree": [{"actionType": "ACTIVATE", "skill": {"slug": "wire-trap"}}],
+            },
+            "talismansPriorityList": [
+                {"slug": "beru-of-the-multitude"},
+                {"slug": "new-seal"},  # empty-slot placeholder, dropped
+            ],
+        }
         state = {
             "diablo4State": {
                 "queries": [
@@ -199,23 +256,7 @@ class MobalyticsTests(unittest.TestCase):
                         "game": {
                             "documents": {
                                 "userGeneratedDocumentBySlug": {
-                                    "data": {
-                                        "buildVariants": {
-                                            "values": [
-                                                {
-                                                    "assignedSkills": {
-                                                        "skills": [
-                                                            {"skill": {"name": "Ball Lightning"}}
-                                                        ],
-                                                        "enchantments": [{"name": "Chain Lightning"}],
-                                                    },
-                                                    "equipmentPriorityList": [
-                                                        {"slug": "harlequin-crest", "type": "helm"}
-                                                    ],
-                                                }
-                                            ]
-                                        }
-                                    }
+                                    "data": {"buildVariants": {"values": [variant]}}
                                 }
                             }
                         }
@@ -231,12 +272,26 @@ class MobalyticsTests(unittest.TestCase):
             "<script>window.__PRELOADED_STATE__ = " + json.dumps(state) + ";</script>"
         )
         meta = fetch_metadata("https://mobalytics.gg/diablo-4/builds/x", get=lambda u: page)
-        skills = next(s for s in meta["sections"] if s["title"] == "Skills")
-        self.assertEqual(skills["items"], ["Ball Lightning"])
-        gear = next(s for s in meta["sections"] if s["title"] == "Gear")
-        self.assertEqual(gear["items"], ["Helm: Harlequin Crest"])
-        ench = next(s for s in meta["sections"] if s["title"] == "Enchantments")
-        self.assertEqual(ench["items"], ["Chain Lightning"])
+        by_title = {s["title"]: s["items"] for s in meta["sections"]}
+        # Bar skills in slot order, never the sidebar's or mercenary's lists.
+        self.assertEqual(by_title["Skills"], ["1 · Ice Armor", "2 · Ball Lightning"])
+        self.assertEqual(by_title["Spirit Hall"], ["Primary: Eagle"])
+        self.assertEqual(by_title["Enchantments"], ["Chain Lightning"])
+        # Ranks from repeated ACTIVATEs; upgrades indent under their skill.
+        self.assertEqual(
+            by_title["Skill Tree"], ["Ball Lightning (2)", "  – Static"]
+        )
+        # Charm slots stay out of gear; uniques are flagged.
+        self.assertEqual(by_title["Gear"], ["Helm: Harlequin Crest (Unique)"])
+        self.assertEqual(
+            by_title["Stat Priorities"],
+            ["Harlequin Crest: Maximum Life, Emerald ×2"],
+        )
+        self.assertEqual(
+            by_title["Paragon Boards"], ["Starter Board — Elementalist (100)"]
+        )
+        self.assertEqual(by_title["Charms"], ["Beru Of The Multitude"])
+        self.assertEqual(by_title["Mercenaries"], ["Primary: Raheir The Shieldbearer"])
 
 
 class MaxrollTests(unittest.TestCase):
@@ -384,7 +439,9 @@ D4B_DOC_FIELDS = {
     "class": "Barbarian",
     "skills": ["Hammer of the Ancients", "War Cry"],
     "gear": {"Helm": "Tuskhelm of Joritz the Mighty", "Offhand": None},
-    "paragon": {"boards": [{"name": "Starting Board", "glyph": "Exploit"}]},
+    "paragon": {
+        "boards": [{"name": "Starting Board", "glyph": "Exploit", "glyphLevel": 100}]
+    },
 }
 
 
@@ -402,6 +459,8 @@ class D4BuildsTests(unittest.TestCase):
         gear = next(s for s in meta["sections"] if s["title"] == "Gear")
         # Slot-map gear renders filled slots and drops empty ones.
         self.assertEqual(gear["items"], ["Helm: Tuskhelm of Joritz the Mighty"])
+        paragon = next(s for s in meta["sections"] if s["title"] == "Paragon Boards")
+        self.assertEqual(paragon["items"], ["Starting Board — Exploit (100)"])
 
     def test_named_build_slug_resolves_via_page_data(self):
         page_data = {

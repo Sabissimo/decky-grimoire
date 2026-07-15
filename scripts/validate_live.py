@@ -18,6 +18,10 @@ import json
 import os
 import sys
 
+# Windows consoles default to a legacy codepage; guide data is UTF-8.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 sys.path.insert(
     0, os.path.join(os.path.dirname(__file__), "..", "py_modules")
 )
