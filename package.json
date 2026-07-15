@@ -1,6 +1,6 @@
 {
   "name": "decky-grimoire",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Grimoire - your ARPG build guides in the Steam Deck Quick Access overlay",
   "type": "module",
   "scripts": {

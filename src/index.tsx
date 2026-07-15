@@ -75,6 +75,12 @@ function openGuide(url: string) {
   Navigation.NavigateToExternalWeb(url);
 }
 
+// On the Deck, dropdowns open a full-screen menu; closing it REMOUNTS the
+// QAM content and wipes useState. Selections live at module scope so the
+// open build and its variant survive that remount.
+let rememberedBuildId: string | null = null;
+const rememberedVariants: Record<string, number> = {};
+
 function BuildDetail({
   build,
   onBack,
@@ -89,7 +95,13 @@ function BuildDetail({
   onOrderChanged: (order: string[]) => void;
 }) {
   const [busy, setBusy] = useState(false);
-  const [variantIdx, setVariantIdx] = useState(0);
+  const [variantIdx, setVariantIdxState] = useState(
+    rememberedVariants[build.id] ?? 0,
+  );
+  const setVariantIdx = (i: number) => {
+    rememberedVariants[build.id] = i;
+    setVariantIdxState(i);
+  };
   const [reordering, setReordering] = useState(false);
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesDraft, setNotesDraft] = useState(build.notes);
@@ -353,7 +365,13 @@ function BuildDetail({
 
 function Content() {
   const [builds, setBuilds] = useState<Build[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedIdState] = useState<string | null>(
+    rememberedBuildId,
+  );
+  const setSelectedId = (id: string | null) => {
+    rememberedBuildId = id;
+    setSelectedIdState(id);
+  };
   const [url, setUrl] = useState("");
   const [adding, setAdding] = useState(false);
   const [sectionOrder, setSectionOrderState] = useState<string[]>([]);
