@@ -10,15 +10,26 @@ library itself.
 import html
 import os
 import re
+import shutil
 import ssl
+import subprocess
+import urllib.error
 import urllib.request
 
 from grimoire.parseutil import strip_tags  # noqa: F401  (re-exported for tests)
 
+# Browser-complete headers: Cloudflare-fronted guide sites 403 sparse
+# bot-looking requests.
 USER_AGENT = (
-    "Mozilla/5.0 (X11; Linux x86_64) decky-grimoire/0.1 "
-    "(+https://github.com/sabissimo/decky-grimoire)"
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
 )
+BROWSER_HEADERS = {
+    "User-Agent": USER_AGENT,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "identity",
+}
 
 # Decky's bundled Python ships an OpenSSL whose default CA paths don't
 # exist on SteamOS, so a plain urlopen(https) dies with
@@ -72,11 +83,70 @@ def _get_parser(provider: str):
     return mod
 
 
+def _curl_get(url: str, max_bytes: int, timeout: int) -> str:
+    """System curl fallback. Decky's embedded Python has a TLS handshake
+    that Cloudflare fingerprints as a bot (403 even with browser headers,
+    while the same request from SteamOS's own stack passes). curl ships
+    with SteamOS and has a normal TLS fingerprint."""
+    # Plugin processes run with a stripped environment - which() can miss
+    # curl even though SteamOS ships it, so check the known path too.
+    curl = shutil.which("curl") or (
+        "/usr/bin/curl" if os.path.isfile("/usr/bin/curl") else None
+    )
+    if not curl:
+        raise OSError("curl not available")
+    # The loader is a bundled (pyinstaller-style) binary and exports
+    # LD_LIBRARY_PATH pointing at its private libs; system curl inherits it,
+    # loads the wrong libssl and dies with exit 1. Launch with a clean
+    # dynamic-linker environment (restoring the pyinstaller-preserved
+    # original if present).
+    env = {
+        k: v
+        for k, v in os.environ.items()
+        if k not in ("LD_LIBRARY_PATH", "LD_PRELOAD", "PYTHONPATH", "PYTHONHOME")
+    }
+    orig = os.environ.get("LD_LIBRARY_PATH_ORIG")
+    if orig:
+        env["LD_LIBRARY_PATH"] = orig
+    proc = subprocess.run(
+        [
+            curl, "-sL", "--compressed", "--max-time", str(timeout),
+            "-A", BROWSER_HEADERS["User-Agent"],
+            "-H", f"Accept: {BROWSER_HEADERS['Accept']}",
+            "-H", f"Accept-Language: {BROWSER_HEADERS['Accept-Language']}",
+            url,
+        ],
+        capture_output=True,
+        timeout=timeout + 10,
+        env=env,
+    )
+    if proc.returncode != 0:
+        detail = proc.stderr.decode("utf-8", errors="replace").strip()[:200]
+        raise OSError(f"curl exit {proc.returncode}: {detail}")
+    return proc.stdout[:max_bytes].decode("utf-8", errors="replace")
+
+
 def http_get(url: str, max_bytes: int = 2_000_000, timeout: int = 10) -> str:
     """Blocking GET returning decoded text. Callers run in an executor."""
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(req, timeout=timeout, context=_SSL_CONTEXT) as resp:
-        return resp.read(max_bytes).decode("utf-8", errors="replace")
+    req = urllib.request.Request(url, headers=BROWSER_HEADERS)
+    try:
+        with urllib.request.urlopen(
+            req, timeout=timeout, context=_SSL_CONTEXT
+        ) as resp:
+            return resp.read(max_bytes).decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as e:
+        # Bot-blocked, not broken: retry through the system TLS stack.
+        if e.code in (403, 429, 503):
+            try:
+                return _curl_get(url, max_bytes, timeout)
+            except Exception as curl_err:
+                # Surface BOTH failures - a swallowed fallback error made
+                # this path undebuggable on the Deck.
+                raise OSError(
+                    f"HTTP {e.code}; curl fallback failed: "
+                    f"{type(curl_err).__name__}: {curl_err}"
+                ) from None
+        raise
 
 
 def _extract_title(page: str) -> str:
@@ -97,10 +167,12 @@ def fetch_metadata(url: str, get=http_get) -> dict:
     full result when the guide site throttles or times out the page fetch -
     maxroll.gg has been seen tarpitting repeat fetches while its planner API
     keeps answering."""
+    error = ""
     try:
         page = get(url)
-    except Exception:
+    except Exception as e:
         page = ""
+        error = f"page fetch: {type(e).__name__}: {e}"
     title = _extract_title(page)
     sections: list = []
     variants: list = []
@@ -116,10 +188,14 @@ def fetch_metadata(url: str, get=http_get) -> dict:
             # builds (Starter / Endgame / ...). `sections` stays the default
             # variant's, so anything ignoring variants keeps working.
             variants = parsed.get("variants") or []
-        except Exception:
+        except Exception as e:
             # Best-effort by contract: structured parsing must never break
             # the generic save-the-link flow.
             sections = []
             variants = []
+            error = f"parser: {type(e).__name__}: {e}"
 
-    return {"title": title, "sections": sections, "variants": variants}
+    # The error rides along so the caller can LOG it - swallowing it
+    # unlogged made real-Deck failures (SSL, DNS) invisible.
+    return {"title": title, "sections": sections, "variants": variants,
+            "error": error}

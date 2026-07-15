@@ -60,6 +60,10 @@ class Plugin:
             decky.logger.warning("metadata fetch failed for %s: %s", url, e)
             meta = {"title": url, "sections": []}
 
+        if meta.get("error"):
+            decky.logger.warning(
+                "metadata degraded for %s: %s", url, meta["error"]
+            )
         build = {
             "id": uuid.uuid4().hex,
             "name": meta.get("title") or url,
@@ -159,6 +163,11 @@ class Plugin:
                         ),
                         timeout=45,  # first Maxroll planner add fetches ~12 MB of game data
                     )
+                    if meta.get("error"):
+                        decky.logger.warning(
+                            "refresh degraded for %s: %s",
+                            b["source_url"], meta["error"],
+                        )
                     b["name"] = meta.get("title") or b["name"]
                     b["sections"] = meta.get("sections", b.get("sections", []))
                     b["variants"] = meta.get("variants", b.get("variants", []))

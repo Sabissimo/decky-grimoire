@@ -157,7 +157,8 @@ class DispatchTests(unittest.TestCase):
             "https://example.com/guide", get=lambda u: "<title>Some Guide</title>"
         )
         self.assertEqual(
-            meta, {"title": "Some Guide", "sections": [], "variants": []}
+            meta,
+            {"title": "Some Guide", "sections": [], "variants": [], "error": ""},
         )
 
     def test_parser_exception_falls_back_to_generic(self):
