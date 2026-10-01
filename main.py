@@ -58,7 +58,8 @@ class Plugin:
             )
         except Exception as e:  # offline, bad URL, site down - still save the link
             decky.logger.warning("metadata fetch failed for %s: %s", url, e)
-            meta = {"title": url, "sections": []}
+            meta = {"title": url, "sections": [],
+                    "error": "Could not fetch guide data. Try Refresh from source later."}
 
         if meta.get("error"):
             decky.logger.warning(
@@ -72,6 +73,7 @@ class Plugin:
             "notes": notes,
             "sections": meta.get("sections", []),
             "variants": meta.get("variants", []),
+            "fetch_error": meta.get("error", ""),
             "pinned": False,
             "added_at": int(time.time()),
         }
@@ -168,11 +170,18 @@ class Plugin:
                             "refresh degraded for %s: %s",
                             b["source_url"], meta["error"],
                         )
+                        b["fetch_error"] = meta["error"]
+                        continue
+                    if not meta.get("sections") and b.get("sections"):
+                        b["fetch_error"] = "No guide sections were returned. Saved data has been kept."
+                        continue
                     b["name"] = meta.get("title") or b["name"]
                     b["sections"] = meta.get("sections", b.get("sections", []))
                     b["variants"] = meta.get("variants", b.get("variants", []))
+                    b["fetch_error"] = ""
                 except Exception as e:
                     decky.logger.warning("refresh failed for %s: %s", b["source_url"], e)
+                    b["fetch_error"] = "Could not fetch guide data. Try Refresh from source later."
         _save_builds(builds)
         return builds
 

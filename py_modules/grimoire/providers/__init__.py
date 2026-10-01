@@ -83,7 +83,7 @@ def _get_parser(provider: str):
     return mod
 
 
-def _curl_get(url: str, max_bytes: int, timeout: int) -> str:
+def _curl_get(url: str, max_bytes: int, timeout: int, headers=None) -> str:
     """System curl fallback. Decky's embedded Python has a TLS handshake
     that Cloudflare fingerprints as a bot (403 even with browser headers,
     while the same request from SteamOS's own stack passes). curl ships
@@ -110,10 +110,12 @@ def _curl_get(url: str, max_bytes: int, timeout: int) -> str:
         env["LD_LIBRARY_PATH"] = orig
     proc = subprocess.run(
         [
-            curl, "-sL", "--compressed", "--max-time", str(timeout),
+            curl, "-fsSL", "--compressed", "--max-time", str(timeout),
             "-A", BROWSER_HEADERS["User-Agent"],
             "-H", f"Accept: {BROWSER_HEADERS['Accept']}",
             "-H", f"Accept-Language: {BROWSER_HEADERS['Accept-Language']}",
+            *[arg for key, value in (headers or {}).items()
+              for arg in ("-H", f"{key}: {value}")],
             url,
         ],
         capture_output=True,
@@ -126,19 +128,22 @@ def _curl_get(url: str, max_bytes: int, timeout: int) -> str:
     return proc.stdout[:max_bytes].decode("utf-8", errors="replace")
 
 
-def http_get(url: str, max_bytes: int = 2_000_000, timeout: int = 10) -> str:
+def http_get(url: str, max_bytes: int = 2_000_000, timeout: int = 10,
+             headers=None) -> str:
     """Blocking GET returning decoded text. Callers run in an executor."""
-    req = urllib.request.Request(url, headers=BROWSER_HEADERS)
+    req = urllib.request.Request(url, headers={**BROWSER_HEADERS, **(headers or {})})
     try:
         with urllib.request.urlopen(
             req, timeout=timeout, context=_SSL_CONTEXT
         ) as resp:
-            return resp.read(max_bytes).decode("utf-8", errors="replace")
+            page = resp.read(max_bytes).decode("utf-8", errors="replace")
     except urllib.error.HTTPError as e:
         # Bot-blocked, not broken: retry through the system TLS stack.
         if e.code in (403, 429, 503):
             try:
-                return _curl_get(url, max_bytes, timeout)
+                page = _curl_get(url, max_bytes, timeout, headers=headers)
+                _check_page(page)
+                return page
             except Exception as curl_err:
                 # Surface BOTH failures - a swallowed fallback error made
                 # this path undebuggable on the Deck.
@@ -147,6 +152,24 @@ def http_get(url: str, max_bytes: int = 2_000_000, timeout: int = 10) -> str:
                     f"{type(curl_err).__name__}: {curl_err}"
                 ) from None
         raise
+    # Some challenge responses use HTTP 200, so status alone is insufficient.
+    if _is_challenge(page):
+        page = _curl_get(url, max_bytes, timeout, headers=headers)
+    _check_page(page)
+    return page
+
+
+def _is_challenge(page: str) -> bool:
+    title = _extract_title(page).lower().rstrip(".\u2026 ")
+    return title in ("just a moment", "attention required! | cloudflare") or (
+        "_cf_chl_opt" in page and "/cdn-cgi/challenge-platform/" in page
+    )
+
+
+def _check_page(page: str) -> None:
+    if _is_challenge(page):
+        raise OSError("The guide site returned a browser verification page. "
+                      "Try Refresh from source later; Open full guide still works.")
 
 
 def _extract_title(page: str) -> str:
@@ -170,6 +193,7 @@ def fetch_metadata(url: str, get=http_get) -> dict:
     error = ""
     try:
         page = get(url)
+        _check_page(page)
     except Exception as e:
         page = ""
         error = f"page fetch: {type(e).__name__}: {e}"
@@ -188,14 +212,18 @@ def fetch_metadata(url: str, get=http_get) -> dict:
             # builds (Starter / Endgame / ...). `sections` stays the default
             # variant's, so anything ignoring variants keeps working.
             variants = parsed.get("variants") or []
+            if parsed.get("error"):
+                error = "; ".join(filter(None, (error, parsed["error"])))
         except Exception as e:
             # Best-effort by contract: structured parsing must never break
             # the generic save-the-link flow.
             sections = []
             variants = []
-            error = f"parser: {type(e).__name__}: {e}"
+            error = "; ".join(filter(None, (error, f"parser: {type(e).__name__}: {e}")))
 
     # The error rides along so the caller can LOG it - swallowing it
     # unlogged made real-Deck failures (SSL, DNS) invisible.
+    if sections:
+        error = ""  # A provider recovered through its separate data endpoint.
     return {"title": title, "sections": sections, "variants": variants,
             "error": error}

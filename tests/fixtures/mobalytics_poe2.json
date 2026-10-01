@@ -1,0 +1,921 @@
+{
+  "userGeneratedDocumentBySlug": {
+    "data": {
+      "data": {
+        "name": "[0.5.5] ED Contagion Lich League Starter (Level 1 to Endgame)",
+        "buildVariants": {
+          "values": [
+            {
+              "id": "1",
+              "equipment": {
+                "flask1": {
+                  "commonItem": {
+                    "isUnique": false,
+                    "name": "Greater Life Flask",
+                    "explicitDescriptions": []
+                  }
+                },
+                "charm1": {
+                  "commonItem": {
+                    "isUnique": false,
+                    "name": "Thawing Charm",
+                    "explicitDescriptions": []
+                  }
+                },
+                "helmet": {
+                  "commonItem": {
+                    "isUnique": false,
+                    "name": "Beaded Circlet",
+                    "explicitDescriptions": [
+                      {
+                        "description": "+60 to maximum Life",
+                        "mustHave": null
+                      },
+                      {
+                        "description": "+11% to Fire Resistance",
+                        "mustHave": null
+                      },
+                      {
+                        "description": "+11% to Cold Resistance",
+                        "mustHave": null
+                      },
+                      {
+                        "description": "+8 to maximum Energy Shield",
+                        "mustHave": null
+                      },
+                      {
+                        "description": "15% increased maximum Energy Shield",
+                        "mustHave": null
+                      }
+                    ]
+                  }
+                },
+                "mainHand": {
+                  "set1": {
+                    "commonItem": {
+                      "isUnique": false,
+                      "name": "Withered Wand",
+                      "explicitDescriptions": [
+                        {
+                          "description": "25% increased Chaos Damage",
+                          "mustHave": null
+                        },
+                        {
+                          "description": "35% increased Spell Damage",
+                          "mustHave": null
+                        },
+                        {
+                          "description": "+1 to Level of all Chaos Spell Skills",
+                          "mustHave": null
+                        },
+                        {
+                          "description": "9% increased Cast Speed",
+                          "mustHave": null
+                        }
+                      ]
+                    }
+                  },
+                  "set2": {
+                    "commonItem": {
+                      "isUnique": false,
+                      "name": "Chiming Staff",
+                      "explicitDescriptions": []
+                    }
+                  }
+                },
+                "offHand": {
+                  "set1": {
+                    "commonItem": {
+                      "isUnique": false,
+                      "name": "Antler Focus",
+                      "explicitDescriptions": [
+                        {
+                          "description": "+16% to Lightning Resistance",
+                          "mustHave": null
+                        },
+                        {
+                          "description": "+12% to Chaos Resistance",
+                          "mustHave": null
+                        },
+                        {
+                          "description": "+25 to maximum Energy Shield",
+                          "mustHave": null
+                        },
+                        {
+                          "description": "27% increased maximum Energy Shield",
+                          "mustHave": null
+                        },
+                        {
+                          "description": "45% increased Spell Damage",
+                          "mustHave": null
+                        },
+                        {
+                          "description": "+1 to Level of all Spell Skills",
+                          "mustHave": null
+                        }
+                      ]
+                    }
+                  },
+                  "set2": {
+                    "commonItem": null
+                  }
+                },
+                "priorityList": [
+                  {
+                    "description": null,
+                    "name": "Antler Focus"
+                  },
+                  {
+                    "description": null,
+                    "name": "Hexer's Robe"
+                  },
+                  {
+                    "description": null,
+                    "name": "Jewelled Gloves"
+                  },
+                  {
+                    "description": null,
+                    "name": "Silk Slippers"
+                  },
+                  {
+                    "description": null,
+                    "name": "Beaded Circlet"
+                  },
+                  {
+                    "description": null,
+                    "name": "Lapis Amulet"
+                  },
+                  {
+                    "description": null,
+                    "name": "Prismatic Ring"
+                  },
+                  {
+                    "description": null,
+                    "name": "Amethyst Ring"
+                  },
+                  {
+                    "description": null,
+                    "name": "Long Belt"
+                  },
+                  {
+                    "description": null,
+                    "name": "Chiming Staff"
+                  },
+                  {
+                    "description": "weapon-fourwand1",
+                    "name": "Withered Wand"
+                  }
+                ]
+              },
+              "skillGems": {
+                "gemRequirements": {
+                  "dex": 10,
+                  "str": 0,
+                  "int": 30
+                },
+                "gems": [
+                  {
+                    "activeSkill": {
+                      "gemSlug": "unearthplayer",
+                      "name": "Unearth",
+                      "level": null
+                    },
+                    "subSkills": null,
+                    "weaponSet": null
+                  },
+                  {
+                    "activeSkill": {
+                      "gemSlug": "contagionplayer",
+                      "name": "Contagion",
+                      "level": null
+                    },
+                    "subSkills": [
+                      {
+                        "gemSlug": "supportunleashplayer",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "contagionplayer"
+                      },
+                      {
+                        "gemSlug": "supportmagnifiedareaplayer",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "contagionplayer"
+                      }
+                    ],
+                    "weaponSet": null
+                  },
+                  {
+                    "activeSkill": {
+                      "gemSlug": "volcanoplayer",
+                      "name": "Volcano",
+                      "level": null
+                    },
+                    "subSkills": [
+                      {
+                        "gemSlug": "supportburgeonplayer",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "volcanoplayer"
+                      }
+                    ],
+                    "weaponSet": null
+                  },
+                  {
+                    "activeSkill": {
+                      "gemSlug": "essencedrainplayer",
+                      "name": "Essence Drain",
+                      "level": null
+                    },
+                    "subSkills": [
+                      {
+                        "gemSlug": "supportswiftafflictionplayer",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "essencedrainplayer"
+                      },
+                      {
+                        "gemSlug": "supportzenithplayer",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "essencedrainplayer"
+                      }
+                    ],
+                    "weaponSet": null
+                  }
+                ],
+                "priorityGems": [
+                  {
+                    "gemSlug": "supportunleashplayer",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": "Unleash",
+                    "parentActiveSkillGemSlug": "contagionplayer"
+                  },
+                  {
+                    "gemSlug": "supportmagnifiedareaplayer",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": "Magnified Area I",
+                    "parentActiveSkillGemSlug": "contagionplayer"
+                  },
+                  {
+                    "gemSlug": "supportburgeonplayer",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": "Burgeon I",
+                    "parentActiveSkillGemSlug": "volcanoplayer"
+                  },
+                  {
+                    "gemSlug": "supportswiftafflictionplayer",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": "Swift Affliction I",
+                    "parentActiveSkillGemSlug": "essencedrainplayer"
+                  },
+                  {
+                    "gemSlug": "supportzenithplayer",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": "Zenith I",
+                    "parentActiveSkillGemSlug": "essencedrainplayer"
+                  }
+                ]
+              },
+              "passiveTree": {
+                "mainTree": {
+                  "priorityList": [
+                    {
+                      "name": "Entropy",
+                      "description": "passive-chaos-witch4"
+                    },
+                    {
+                      "name": "Potent Incantation",
+                      "description": "passive-spells33"
+                    },
+                    {
+                      "name": "Practiced Signs",
+                      "description": "passive-cast-speed36-"
+                    },
+                    {
+                      "name": "Pure Energy",
+                      "description": "passive-witch-sorceress-notable2"
+                    }
+                  ]
+                },
+                "set1Tree": {},
+                "set2Tree": {},
+                "ascendancyTree": {
+                  "priorityList": null
+                }
+              }
+            },
+            {
+              "id": "1bde2724-6aae-4e79-8e8b-fab71ebdb04e",
+              "equipment": {
+                "flask1": {
+                  "commonItem": {
+                    "isUnique": false,
+                    "name": "Ultimate Life Flask",
+                    "explicitDescriptions": []
+                  }
+                },
+                "charm1": {
+                  "commonItem": {
+                    "isUnique": true,
+                    "name": "Nascent Hope",
+                    "explicitDescriptions": []
+                  }
+                },
+                "helmet": {
+                  "commonItem": {
+                    "isUnique": true,
+                    "name": "Atziri's Disdain",
+                    "explicitDescriptions": []
+                  }
+                },
+                "mainHand": {
+                  "set1": {
+                    "commonItem": {
+                      "isUnique": false,
+                      "name": "Withered Wand",
+                      "explicitDescriptions": [
+                        {
+                          "description": "105% increased Chaos Damage",
+                          "mustHave": null
+                        },
+                        {
+                          "description": "105% increased Spell Damage",
+                          "mustHave": null
+                        },
+                        {
+                          "description": "+5 to Level of all Chaos Spell Skills",
+                          "mustHave": null
+                        },
+                        {
+                          "description": "25% increased Cast Speed",
+                          "mustHave": null
+                        },
+                        {
+                          "description": "Gain 16% of Damage as Extra Lightning Damage",
+                          "mustHave": null
+                        },
+                        {
+                          "description": "18% increased Mana Cost Efficiency",
+                          "mustHave": null
+                        }
+                      ]
+                    }
+                  },
+                  "set2": {
+                    "commonItem": {
+                      "isUnique": false,
+                      "name": "Chiming Staff",
+                      "explicitDescriptions": []
+                    }
+                  }
+                },
+                "offHand": {
+                  "set1": {
+                    "commonItem": {
+                      "isUnique": false,
+                      "name": "Tasalian Focus",
+                      "explicitDescriptions": [
+                        {
+                          "description": "90% increased Chaos Damage",
+                          "mustHave": null
+                        },
+                        {
+                          "description": "+36% to Lightning Resistance",
+                          "mustHave": null
+                        },
+                        {
+                          "description": "75% increased Spell Damage",
+                          "mustHave": null
+                        },
+                        {
+                          "description": "+3 to Level of all Spell Skills",
+                          "mustHave": null
+                        },
+                        {
+                          "description": "29% increased Cast Speed",
+                          "mustHave": null
+                        },
+                        {
+                          "description": "26% faster start of Energy Shield Recharge",
+                          "mustHave": null
+                        },
+                        {
+                          "description": "Spell Skills have +1 to maximum number of Summoned Totems",
+                          "mustHave": null
+                        }
+                      ]
+                    }
+                  },
+                  "set2": {
+                    "commonItem": null
+                  }
+                },
+                "priorityList": [
+                  {
+                    "description": null,
+                    "name": "Ingenuity"
+                  },
+                  {
+                    "description": null,
+                    "name": "Withered Wand"
+                  },
+                  {
+                    "description": null,
+                    "name": "Tasalian Focus"
+                  },
+                  {
+                    "description": null,
+                    "name": "Sacramental Robe"
+                  },
+                  {
+                    "description": null,
+                    "name": "Gold Gloves"
+                  },
+                  {
+                    "description": null,
+                    "name": "Dunerunner Sandals"
+                  },
+                  {
+                    "description": null,
+                    "name": "Solar Amulet"
+                  },
+                  {
+                    "description": null,
+                    "name": "Prismatic Ring"
+                  },
+                  {
+                    "description": null,
+                    "name": "Prismatic Ring"
+                  },
+                  {
+                    "description": null,
+                    "name": "Chiming Staff"
+                  },
+                  {
+                    "description": "armour-fouruniquehelmetint6-atziri's-disdain",
+                    "name": "Atziri's Disdain"
+                  }
+                ]
+              },
+              "skillGems": {
+                "gemRequirements": {
+                  "dex": 40,
+                  "str": 30,
+                  "int": 105
+                },
+                "gems": [
+                  {
+                    "activeSkill": {
+                      "gemSlug": "essencedrainplayer",
+                      "name": "Essence Drain",
+                      "level": null
+                    },
+                    "subSkills": [
+                      {
+                        "gemSlug": "supportchainplayertwo",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "essencedrainplayer"
+                      },
+                      {
+                        "gemSlug": "supportchaosmasteryplayer",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "essencedrainplayer"
+                      },
+                      {
+                        "gemSlug": "supportzenithplayertwo",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "essencedrainplayer"
+                      },
+                      {
+                        "gemSlug": "supportswiftafflictionplayertwo",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "essencedrainplayer"
+                      },
+                      {
+                        "gemSlug": "supportwildshardsplayerthree",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "essencedrainplayer"
+                      }
+                    ],
+                    "weaponSet": null
+                  },
+                  {
+                    "activeSkill": {
+                      "gemSlug": "darkeffigyplayer",
+                      "name": "Dark Effigy",
+                      "level": null
+                    },
+                    "subSkills": [
+                      {
+                        "gemSlug": "supportincreaselimitplayertwo",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "darkeffigyplayer"
+                      },
+                      {
+                        "gemSlug": "supportexecuteplayerthree",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "darkeffigyplayer"
+                      },
+                      {
+                        "gemSlug": "supportcontrolleddestructionplayer",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "darkeffigyplayer"
+                      },
+                      {
+                        "gemSlug": "supporturgenttotemsplayerthree",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "darkeffigyplayer"
+                      },
+                      {
+                        "gemSlug": "supportextractionplayer",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "darkeffigyplayer"
+                      }
+                    ],
+                    "weaponSet": null
+                  },
+                  {
+                    "activeSkill": {
+                      "gemSlug": "contagionplayer",
+                      "name": "Contagion",
+                      "level": null
+                    },
+                    "subSkills": [
+                      {
+                        "gemSlug": "supportunleashplayer",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "contagionplayer"
+                      },
+                      {
+                        "gemSlug": "supportrapidcastingplayertwo",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "contagionplayer"
+                      },
+                      {
+                        "gemSlug": "supportchaoticfreezeplayer",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "contagionplayer"
+                      },
+                      {
+                        "gemSlug": "supportmagnifiedareaplayertwo",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "contagionplayer"
+                      },
+                      {
+                        "gemSlug": "supportarcanesurgeplayer",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "contagionplayer"
+                      }
+                    ],
+                    "weaponSet": null
+                  },
+                  {
+                    "activeSkill": {
+                      "gemSlug": "weapongrantedchaosboltplayer",
+                      "name": "Chaos Bolt",
+                      "level": null
+                    },
+                    "subSkills": [
+                      {
+                        "gemSlug": "supportchaosmasteryplayer",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "weapongrantedchaosboltplayer"
+                      },
+                      {
+                        "gemSlug": "supportwitheringtouchplayer",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "weapongrantedchaosboltplayer"
+                      },
+                      {
+                        "gemSlug": "supportrapidcastingplayertwo",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "weapongrantedchaosboltplayer"
+                      },
+                      {
+                        "gemSlug": "supportextractionplayer",
+                        "gemType": "SUPPORT",
+                        "parentActiveSkillGemSlug": "weapongrantedchaosboltplayer"
+                      }
+                    ],
+                    "weaponSet": null
+                  }
+                ],
+                "priorityGems": [
+                  {
+                    "gemSlug": "supportchaosmasteryplayer",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": "Chaos Mastery",
+                    "parentActiveSkillGemSlug": "essencedrainplayer"
+                  },
+                  {
+                    "gemSlug": "supportunleashplayer",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": "Unleash",
+                    "parentActiveSkillGemSlug": "contagionplayer"
+                  },
+                  {
+                    "gemSlug": "supportchaoticfreezeplayer",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": "Chaotic Freeze",
+                    "parentActiveSkillGemSlug": "contagionplayer"
+                  },
+                  {
+                    "gemSlug": "supportarcanesurgeplayer",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": "Arcane Surge",
+                    "parentActiveSkillGemSlug": "contagionplayer"
+                  },
+                  {
+                    "gemSlug": "supportcontrolleddestructionplayer",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": "Controlled Destruction",
+                    "parentActiveSkillGemSlug": "darkeffigyplayer"
+                  },
+                  {
+                    "gemSlug": "supportchainplayertwo",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": "Chain II",
+                    "parentActiveSkillGemSlug": "essencedrainplayer"
+                  },
+                  {
+                    "gemSlug": "supportswiftafflictionplayertwo",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": "Swift Affliction II",
+                    "parentActiveSkillGemSlug": "essencedrainplayer"
+                  },
+                  {
+                    "gemSlug": "supportwildshardsplayerthree",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": "Sione's Temper",
+                    "parentActiveSkillGemSlug": "essencedrainplayer"
+                  },
+                  {
+                    "gemSlug": "supportincreaselimitplayertwo",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": "Overabundance II",
+                    "parentActiveSkillGemSlug": "darkeffigyplayer"
+                  },
+                  {
+                    "gemSlug": "supporturgenttotemsplayerthree",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": "Urgent Totems III",
+                    "parentActiveSkillGemSlug": "darkeffigyplayer"
+                  },
+                  {
+                    "gemSlug": "supportextractionplayer",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": "Extraction",
+                    "parentActiveSkillGemSlug": "darkeffigyplayer"
+                  },
+                  {
+                    "gemSlug": "supportexecuteplayerthree",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": null,
+                    "parentActiveSkillGemSlug": "darkeffigyplayer"
+                  },
+                  {
+                    "gemSlug": "supportrapidcastingplayertwo",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": "Rapid Casting II",
+                    "parentActiveSkillGemSlug": "contagionplayer"
+                  },
+                  {
+                    "gemSlug": "supportmagnifiedareaplayertwo",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": "Magnified Area II",
+                    "parentActiveSkillGemSlug": "contagionplayer"
+                  },
+                  {
+                    "gemSlug": "supportchaosmasteryplayer",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": "Chaos Mastery",
+                    "parentActiveSkillGemSlug": "weapongrantedchaosboltplayer"
+                  },
+                  {
+                    "gemSlug": "supportwitheringtouchplayer",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": "Withering Touch",
+                    "parentActiveSkillGemSlug": "weapongrantedchaosboltplayer"
+                  },
+                  {
+                    "gemSlug": "supportrapidcastingplayertwo",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": "Rapid Casting II",
+                    "parentActiveSkillGemSlug": "weapongrantedchaosboltplayer"
+                  },
+                  {
+                    "gemSlug": "supportextractionplayer",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": "Extraction",
+                    "parentActiveSkillGemSlug": "weapongrantedchaosboltplayer"
+                  },
+                  {
+                    "gemSlug": "supportzenithplayertwo",
+                    "gemType": "SUPPORT",
+                    "description": null,
+                    "name": "Zenith II",
+                    "parentActiveSkillGemSlug": "essencedrainplayer"
+                  }
+                ]
+              },
+              "passiveTree": {
+                "mainTree": {
+                  "priorityList": [
+                    {
+                      "name": "Practiced Signs",
+                      "description": "passive-cast-speed36-"
+                    },
+                    {
+                      "name": "Pure Energy",
+                      "description": "passive-witch-sorceress-notable2"
+                    },
+                    {
+                      "name": "Dampening Shield",
+                      "description": "passive-energy-shield37"
+                    },
+                    {
+                      "name": "Entropy",
+                      "description": "passive-chaos-witch4"
+                    },
+                    {
+                      "name": "Efficient Casting",
+                      "description": "passive-mana-regeneration50-"
+                    },
+                    {
+                      "name": "Lingering Horror",
+                      "description": "passive-chaos37"
+                    },
+                    {
+                      "name": "Melding",
+                      "description": "passive-energy-shield35"
+                    },
+                    {
+                      "name": "Whispers of Doom",
+                      "description": "passive-passive-keystone-whispers-of-doom"
+                    },
+                    {
+                      "name": "Ingenuity",
+                      "description": "passive-intelligence101-"
+                    },
+                    {
+                      "name": "Patient Barrier",
+                      "description": "passive-energy-shield33-"
+                    },
+                    {
+                      "name": "Final Barrage",
+                      "description": "passive-cast-speed30"
+                    },
+                    {
+                      "name": "Overzealous",
+                      "description": "passive-cast-speed33"
+                    },
+                    {
+                      "name": "Enhanced Barrier",
+                      "description": "passive-energy-shield36"
+                    },
+                    {
+                      "name": "Void",
+                      "description": "passive-chaos36"
+                    },
+                    {
+                      "name": "Heavy Buffer",
+                      "description": "passive-energy-shield38"
+                    },
+                    {
+                      "name": "Convalescence",
+                      "description": "passive-energy-shield-recovery22"
+                    },
+                    {
+                      "name": "Zone of Control",
+                      "description": "passive-curses6"
+                    },
+                    {
+                      "name": "Master of Hexes",
+                      "description": "passive-curses10"
+                    },
+                    {
+                      "name": "Spirit Bond",
+                      "description": "passive-totems21"
+                    },
+                    {
+                      "name": "Ancestral Conduits",
+                      "description": "passive-totems33-"
+                    },
+                    {
+                      "name": "Potent Incantation",
+                      "description": "passive-spells33"
+                    },
+                    {
+                      "name": "Dark Entries",
+                      "description": "passive-chaos31"
+                    },
+                    {
+                      "name": "Distant Dreamer",
+                      "description": "passive-monkchaos6"
+                    },
+                    {
+                      "name": "Wither Away",
+                      "description": "passive-chaos38"
+                    },
+                    {
+                      "name": "Lingering Whispers",
+                      "description": "passive-curses18"
+                    },
+                    {
+                      "name": "Impending Doom",
+                      "description": "passive-curses5"
+                    },
+                    {
+                      "name": "Fated End",
+                      "description": "passive-curses14"
+                    },
+                    {
+                      "name": "Decrepifying Curse",
+                      "description": "passive-curses25"
+                    },
+                    {
+                      "name": "Refocus",
+                      "description": "passive-energy-shield-recovery17"
+                    },
+                    {
+                      "name": "Dependable Ward",
+                      "description": "passive-energy-shield-recovery18"
+                    }
+                  ]
+                },
+                "set1Tree": {},
+                "set2Tree": {},
+                "ascendancyTree": {
+                  "priorityList": [
+                    {
+                      "name": "Soulless Form",
+                      "description": "passive-ascendancywitch3notable5"
+                    },
+                    {
+                      "name": "Eternal Life",
+                      "description": "passive-ascendancywitch3notable6"
+                    },
+                    {
+                      "name": "Eldritch Empowerment",
+                      "description": "passive-ascendancywitch3notable8"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "questRewards": {
+          "quests": [
+            {
+              "quest": {
+                "name": "Medallion",
+                "act": "Act 2",
+                "area": "Valley of the Titans"
+              },
+              "reward": {
+                "name": "Medallion",
+                "bakedDescription": "30% increased Charm Charges gained, +1 Charm Slot"
+              }
+            }
+          ]
+        }
+      },
+      "content": [
+        {
+          "data": {
+            "childrenVariants": [
+              {
+                "id": "1",
+                "title": "ACT 1"
+              },
+              {
+                "id": "1bde2724-6aae-4e79-8e8b-fab71ebdb04e",
+                "title": "ENDGAME (LOW LIFE)"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

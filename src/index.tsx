@@ -30,6 +30,7 @@ interface Build {
   notes: string;
   sections: BuildSection[];
   variants?: BuildVariant[];
+  fetch_error?: string;
   progress?: Record<string, boolean>;
   pinned: boolean;
   added_at: number;
@@ -220,6 +221,20 @@ function BuildDetail({
           </PanelSectionRow>
         )}
       </PanelSection>
+
+      {(build.fetch_error || sections.length === 0) && (
+        <PanelSection title={build.fetch_error ? "Guide fetch failed" : "No guide data saved"}>
+          <PanelSectionRow>
+            <div style={{ fontSize: "0.9em" }}>
+              {build.fetch_error?.includes("verification")
+                ? "The site returned a browser verification page. "
+                : "Grimoire couldn't read the guide data. "}
+              {sections.length > 0 && "Your previously saved data is shown below. "}
+              Try Refresh from source, or use Open full guide to read it in the browser.
+            </div>
+          </PanelSectionRow>
+        </PanelSection>
+      )}
 
       {reordering && (
         <PanelSection title="Section order">

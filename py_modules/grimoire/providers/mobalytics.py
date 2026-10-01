@@ -13,10 +13,16 @@ enchantments). _variant_sections renders all of it; if the shape ever
 shifts, parse() falls back to the generic structure scan and then the
 heading outline - the dispatcher guarantees a save never breaks.
 
+PoE2 uses the same document/variant envelope with different build fields.
+mobalytics_poe2 renders those fields and fetches featured guide data through
+the website's public GraphQL endpoint when HTML fetching is blocked.
+
 Note: scraping is tolerated for personal use but Mobalytics' ToS doesn't
 invite it. Grimoire only ever fetches pages the user explicitly pasted,
 once per add/refresh - no crawling, no background polling.
 """
+from urllib.parse import urlsplit
+
 from grimoire.parseutil import (
     MAX_ITEMS_PER_SECTION,
     extract_json_scripts,
@@ -24,6 +30,7 @@ from grimoire.parseutil import (
     sections_from_tree,
     walk,
 )
+from grimoire.providers import mobalytics_poe2
 
 # The GraphQL result holding THE page's own build. The preloaded state also
 # caches sidebar queries (featured builds and the like), so scanning the
@@ -38,8 +45,11 @@ CLASS_PREFIXES = frozenset(
 
 def _page_document(blob):
     for node in walk(blob):
-        if isinstance(node, dict) and DOCUMENT_KEY in node:
-            return node[DOCUMENT_KEY]
+        if isinstance(node, dict):
+            for key in (DOCUMENT_KEY, "userGeneratedDocumentBySlugifiedName",
+                        "userGeneratedDocumentById"):
+                if key in node:
+                    return node[key]
     return None
 
 
@@ -322,7 +332,7 @@ def _variant_titles(doc) -> dict:
     return titles
 
 
-def _detailed_variants(doc) -> list:
+def _detailed_variants(doc, poe2=False) -> list:
     """Every build variant as {name, sections} - guides ship several
     (Starter / Endgame / Mythic / Pushing) and they differ in gear,
     paragon and even skills, so the panel must offer all of them."""
@@ -330,11 +340,13 @@ def _detailed_variants(doc) -> list:
         if isinstance(node, dict) and isinstance(node.get("buildVariants"), dict):
             values = node["buildVariants"].get("values") or []
             titles = _variant_titles(doc)
+            quests = mobalytics_poe2.quest_rewards(node.get("questRewards")) if poe2 else []
             variants = []
             for i, variant in enumerate(values, 1):
                 if not isinstance(variant, dict):
                     continue
-                sections = _variant_sections(variant)
+                sections = (mobalytics_poe2.variant_sections(variant, quests)
+                            if poe2 else _variant_sections(variant))
                 if sections:
                     name = titles.get(variant.get("id")) or f"Variant {i}"
                     variants.append({"name": name, "sections": sections})
@@ -345,17 +357,28 @@ def _detailed_variants(doc) -> list:
 
 def parse(url: str, page: str, http_get) -> dict:
     result = {"title": "", "sections": [], "variants": []}
+    poe2 = urlsplit(url).path.startswith("/poe-2/")
 
     # Two passes: a blob containing the page's own document always beats a
     # whole-blob scan of some other embed (nav/search caches also embed
     # build-shaped JSON, and a generic scan of those wins the wrong build).
     blobs = extract_json_scripts(page)
-    for blob in blobs:
-        doc = _page_document(blob)
-        if not doc:
-            continue
+    documents = [doc for blob in blobs if (doc := _page_document(blob))]
+    if poe2 and not documents:
         try:
-            result["variants"] = _detailed_variants(doc)
+            doc = mobalytics_poe2.fetch_document(url, http_get)
+            if doc:
+                documents.append(doc)
+        except Exception as e:
+            result["error"] = f"PoE2 guide data: {type(e).__name__}: {e}"
+    for doc in documents:
+        if poe2 and isinstance(doc, dict):
+            document = doc.get("data")
+            data = document.get("data") if isinstance(document, dict) else None
+            if isinstance(data, dict) and isinstance(data.get("name"), str):
+                result["title"] = data["name"].strip()
+        try:
+            result["variants"] = _detailed_variants(doc, poe2=poe2)
         except Exception:
             result["variants"] = []
         if result["variants"]:
@@ -364,7 +387,7 @@ def parse(url: str, page: str, http_get) -> dict:
             result["sections"] = sections_from_tree(doc)
         if result["sections"]:
             break
-    if not result["sections"]:
+    if not result["sections"] and not documents and not poe2:
         for blob in blobs:
             sections = sections_from_tree(blob)
             if sections:

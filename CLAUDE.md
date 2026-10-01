@@ -1,7 +1,7 @@
 # Grimoire — Decky Loader plugin
 
-ARPG build guides in the Steam Deck Quick Access overlay. Diablo 4 first
-(Mobalytics / Maxroll / d4builds.gg), designed to grow to PoE2 / Last Epoch.
+ARPG build guides in the Steam Deck Quick Access overlay. Diablo 4
+(Mobalytics / Maxroll / d4builds.gg) and PoE2 (Mobalytics).
 
 ## Commands
 
@@ -61,6 +61,15 @@ matching package.json's version, then `git push origin vX.Y.Z`.
 
 ## Current state / next steps
 
+- **PoE2 Mobalytics validated 2026-10-01** with
+  `https://mobalytics.gg/poe-2/builds/chaos-dot-lich-starter-deadrabbit`:
+  six variants, equipment through `commonItem`, two weapon sets, linked
+  gems resolved through `priorityGems`, passive/ascendancy priorities and
+  quest rewards. `mobalytics_poe2.py` owns this schema. HTML can return a
+  Cloudflare challenge even with status 200; reject it and fall back to
+  the public featured-guide GraphQL GET with `Apollo-Require-Preflight`.
+  Some API gem names are null; never invent names from internal slugs.
+  Failed refreshes preserve saved content and expose `fetch_error` in the UI.
 - **All three providers live-validated 2026-07-15** (real URLs, open
   network). Mobalytics and d4builds parse FULL builds (skill bar, ranked
   skill tree, gear, stat priorities with greater-affix ✱ / masterwork /
@@ -122,8 +131,8 @@ matching package.json's version, then `git push origin vX.Y.Z`.
     empty field explains itself in a toast).
   - `fetch_metadata` returns an `error` field that add/refresh log —
     silent degradation made every real-Deck failure invisible; keep it.
-- Roadmap: more games (PoE2 / Last Epoch providers — SHELVED until
-  asked) → Decky store submission (repo is BSD-3-Clause, store requires
+- Roadmap: more PoE2 providers / Last Epoch → Decky store submission
+  (repo is BSD-3-Clause, store requires
   OSI license — done). Done and shipped: Maxroll planner detail
   parity, per-build notes editing, leveling checklist, section reordering,
   build variants.

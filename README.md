@@ -8,9 +8,8 @@ overlay. Stuck on which affix to keep, what skill to take at level 32, or how
 to path your paragon board? Press <kbd>...</kbd> instead of reaching for your
 phone.
 
-Built for **Diablo 4** first (Mobalytics, Maxroll, d4builds.gg links), with a
-provider system designed to grow into other ARPGs (Path of Exile 2, Last
-Epoch, ...).
+Supports **Diablo 4** (Mobalytics, Maxroll, d4builds.gg) and **Path of Exile 2**
+(Mobalytics), with a provider system for adding other ARPGs.
 
 ## Features
 
@@ -34,14 +33,21 @@ Epoch, ...).
 - 📴 **Works offline** — your library lives on the Deck; a saved build is
   readable with no connection.
 
-Supports **Mobalytics**, **Maxroll** (planners and build guides) and
-**d4builds.gg** links. A guide site redesign can never break your library —
-worst case a build temporarily shows fewer sections until Grimoire catches
-up.
+PoE2 Mobalytics guides include build variants, skill gems with linked
+supports, both weapon sets, equipment stats, flasks, charms, named passive
+priorities, ascendancy choices and quest rewards. Use **Open full guide**
+for the visual passive tree, socket details and the author's full explanations.
+
+If a featured Mobalytics PoE2 page is blocked, Grimoire tries the site's
+public guide-data endpoint. Browser verification pages such as "Just a
+moment..." are reported as fetch failures if recovery fails, instead of
+being saved as guide titles. A failed refresh keeps
+previously saved data. After updating the plugin, use **Refresh from source**
+on an existing guide to load its PoE2 sections.
 
 ### Roadmap
 
-- More games (Path of Exile 2, Last Epoch) and the Decky store
+- More PoE2 providers, Last Epoch and the Decky store
 
 ## Installation
 
@@ -80,9 +86,9 @@ decky-grimoire/
 - **Backend** — `main.py` + `py_modules/grimoire/`. Pure stdlib Python
   (no vendored dependencies needed). Builds and preferences are stored as
   JSON in the plugin settings directory.
-- **Providers** — `py_modules/grimoire/providers/` contains one module per
-  guide site. The generic fallback (og:title scrape + open-in-browser)
-  always works; structured parsers must degrade to it gracefully.
+- **Providers** — `py_modules/grimoire/providers/` contains each site's parser.
+  `mobalytics_poe2.py` handles PoE2 data and the featured-guide API fallback.
+  Failed parsing still saves the link for opening in the browser.
 - **Validating parsers** — guide sites redesign freely; when a provider
   stops yielding sections, re-check it from a normal network with
   `python3 scripts/validate_live.py <guide-url>`. Title but no sections =
